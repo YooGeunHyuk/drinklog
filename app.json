@@ -26,6 +26,29 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-font",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "DRINKLOG이(가) 바코드 스캔을 위해 카메라에 접근합니다."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "DRINKLOG이(가) 라벨 인식을 위해 사진에 접근합니다.",
+          "cameraPermission": "DRINKLOG이(가) 라벨 촬영을 위해 카메라에 접근합니다."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "DRINKLOG이(가) 기록한 술자리의 날씨와 지역을 자동으로 기록하기 위해 위치에 접근합니다.",
+          "locationWhenInUsePermission": "DRINKLOG이(가) 기록한 술자리의 날씨와 지역을 자동으로 기록하기 위해 위치에 접근합니다."
+        }
+      ]
+    ]
   }
 }

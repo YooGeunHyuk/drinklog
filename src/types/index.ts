@@ -61,6 +61,33 @@ export interface DrinkCatalog {
   created_at: string;
 }
 
+// 기분 / 상황 태그
+export type DrinkMood =
+  | 'alone'      // 혼술
+  | 'casual'     // 편한자리
+  | 'party'      // 회식/모임
+  | 'date'       // 데이트
+  | 'business'   // 비즈니스
+  | 'celebration'; // 축하
+
+export const MOOD_LABELS: Record<DrinkMood, string> = {
+  alone: '혼술',
+  casual: '편한자리',
+  party: '모임·회식',
+  date: '데이트',
+  business: '비즈니스',
+  celebration: '축하',
+};
+
+export const MOOD_ICONS: Record<DrinkMood, string> = {
+  alone: '🧘',
+  casual: '🛋️',
+  party: '🎉',
+  date: '💕',
+  business: '👔',
+  celebration: '🥂',
+};
+
 export interface DrinkLog {
   id: string;
   user_id: string;
@@ -72,6 +99,13 @@ export interface DrinkLog {
   input_method: InputMethod;
   photo_url: string | null;
   note: string | null;
+  location: string | null;
+  companions: string | null;
+  mood: DrinkMood | null;
+  // 날씨 (자동 기록)
+  weather: string | null;         // 'sunny' | 'cloudy' | 'rainy' | 'snowy' | 'stormy' | 'foggy'
+  temperature: number | null;     // 섭씨
+  location_name: string | null;   // "서울 강남구"
   created_at: string;
   // 조인용
   drink_catalog?: DrinkCatalog;
