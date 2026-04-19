@@ -4,7 +4,6 @@ import { Text, StyleSheet } from 'react-native';
 import { colors, fontSize } from '../constants/theme';
 
 import HomeScreen from '../screens/HomeScreen';
-import AddDrinkScreen from '../screens/AddDrinkScreen';
 import StatsScreen from '../screens/StatsScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import CatalogScreen from '../screens/CatalogScreen';
@@ -13,7 +12,6 @@ const Tab = createBottomTabNavigator();
 
 const TAB_ICONS: Record<string, string> = {
   홈: '🏠',
-  기록추가: '➕',
   통계: '📊',
   기록목록: '📋',
   카탈로그: '🗃️',
@@ -36,14 +34,13 @@ export default function TabNavigator() {
               { color: focused ? colors.primary : colors.textTertiary },
             ]}
           >
-            {route.name === '기록추가' ? '추가' : route.name === '기록목록' ? '기록' : route.name}
+            {route.name === '기록목록' ? '기록' : route.name}
           </Text>
         ),
         tabBarStyle: styles.tabBar,
       })}
     >
       <Tab.Screen name="홈" component={HomeScreen} />
-      <Tab.Screen name="기록추가" component={AddDrinkScreen} />
       <Tab.Screen name="통계" component={StatsScreen} />
       <Tab.Screen name="기록목록" component={HistoryScreen} />
       <Tab.Screen name="카탈로그" component={CatalogScreen} />
