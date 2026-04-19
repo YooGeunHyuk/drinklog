@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
 import { Gender } from '../types';
+import { supabase } from '../lib/supabase';
 
 interface Props {
   onComplete: () => void;
@@ -23,6 +24,7 @@ export default function ProfileSetupScreen({ onComplete }: Props) {
   const [gender, setGender] = useState<Gender | null>(null);
   const [birthYear, setBirthYear] = useState('');
   const [marketingAgreed, setMarketingAgreed] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const GENDER_OPTIONS: { key: Gender; label: string }[] = [
     { key: 'male', label: '남성' },
@@ -30,22 +32,41 @@ export default function ProfileSetupScreen({ onComplete }: Props) {
     { key: 'none', label: '선택 안 함' },
   ];
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
     // 만 19세 미만 체크
     if (birthYear) {
       const year = parseInt(birthYear, 10);
       const currentYear = new Date().getFullYear();
       if (currentYear - year < 19) {
-        Alert.alert(
-          '가입 불가',
-          '만 19세 미만은 이용할 수 없습니다.',
-        );
+        Alert.alert('가입 불가', '만 19세 미만은 이용할 수 없습니다.');
         return;
       }
     }
 
-    // TODO: Supabase에 프로필 저장
-    onComplete();
+    setIsLoading(true);
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('로그인 세션이 없습니다.');
+      }
+      const { error } = await supabase
+        .from('users')
+        .update({
+          nickname: nickname || null,
+          gender: gender,
+          birth_year: birthYear ? parseInt(birthYear, 10) : null,
+          marketing_agreed: marketingAgreed,
+        })
+        .eq('id', user.id);
+      if (error) throw error;
+      onComplete();
+    } catch (err: any) {
+      Alert.alert('저장 실패', err.message ?? '프로필 저장에 실패했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

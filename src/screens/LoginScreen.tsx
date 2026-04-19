@@ -9,12 +9,16 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
+import { useFonts, PlayfairDisplay_700Bold } from '@expo-google-fonts/playfair-display';
 import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
+import { supabase } from '../lib/supabase';
 
 type Step = 'phone' | 'verify';
 
 export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
+  const [fontsLoaded] = useFonts({ PlayfairDisplay_700Bold });
   const [step, setStep] = useState<Step>('phone');
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
@@ -27,6 +31,14 @@ export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
     return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 7)}-${cleaned.slice(7, 11)}`;
   };
 
+  // 국제 표기(+82)로 변환: 010-1234-5678 → +821012345678
+  const toE164 = (raw: string) => {
+    const cleaned = raw.replace(/\D/g, '');
+    if (cleaned.startsWith('0')) return `+82${cleaned.slice(1)}`;
+    if (cleaned.startsWith('82')) return `+${cleaned}`;
+    return `+82${cleaned}`;
+  };
+
   const handleSendCode = async () => {
     const cleaned = phone.replace(/\D/g, '');
     if (cleaned.length < 10) {
@@ -34,12 +46,18 @@ export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
       return;
     }
     setIsLoading(true);
-    // TODO: Supabase SMS OTP 발송
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        phone: toE164(phone),
+      });
+      if (error) throw error;
       setStep('verify');
-      Alert.alert('인증번호 발송', '인증번호가 발송되었습니다.\n(개발 중: 아무 6자리 입력)');
-    }, 1000);
+      Alert.alert('인증번호 발송', '인증번호가 발송되었습니다.');
+    } catch (err: any) {
+      Alert.alert('전송 실패', err.message ?? '인증번호 발송에 실패했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleVerify = async () => {
@@ -48,11 +66,19 @@ export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
       return;
     }
     setIsLoading(true);
-    // TODO: Supabase OTP 검증
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        phone: toE164(phone),
+        token: code,
+        type: 'sms',
+      });
+      if (error) throw error;
       onLogin();
-    }, 1000);
+    } catch (err: any) {
+      Alert.alert('인증 실패', err.message ?? '인증번호가 올바르지 않습니다.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -64,9 +90,15 @@ export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
         <View style={styles.content}>
           {/* 로고 영역 */}
           <View style={styles.logoSection}>
-            <Text style={styles.logoEmoji}>🍶</Text>
-            <Text style={styles.logoText}>주로</Text>
-            <Text style={styles.logoSubtext}>DRINKLOG</Text>
+            <Text style={styles.logoText}>酒路</Text>
+            <Text
+              style={[
+                styles.logoSubtext,
+                fontsLoaded && { fontFamily: 'PlayfairDisplay_700Bold' },
+              ]}
+            >
+              DRINKLOG
+            </Text>
             <Text style={styles.slogan}>나의 술 여정을 기록하다</Text>
           </View>
 
@@ -177,25 +209,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.xxl,
   },
-  logoEmoji: {
-    fontSize: 64,
-    marginBottom: spacing.md,
-  },
   logoText: {
-    fontSize: 48,
+    fontSize: 56,
     fontWeight: '800',
     color: colors.primary,
+    letterSpacing: 8,
   },
   logoSubtext: {
-    fontSize: fontSize.lg,
+    fontSize: fontSize.xl,
     color: colors.textSecondary,
-    letterSpacing: 4,
-    marginTop: spacing.xs,
+    letterSpacing: 6,
+    marginTop: spacing.sm,
   },
   slogan: {
     fontSize: fontSize.sm,
     color: colors.textTertiary,
-    marginTop: spacing.md,
+    marginTop: spacing.lg,
   },
   inputSection: {
     marginBottom: spacing.xl,
