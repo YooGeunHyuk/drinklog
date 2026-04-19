@@ -19,6 +19,13 @@ import {
   getCategoryProgress,
   BADGES,
 } from '../constants/milestones';
+import {
+  evaluateAchievements,
+  CATEGORY_LABELS as ACH_CATEGORY_LABELS,
+  AchievementCategory,
+} from '../constants/achievements';
+import { extractInsights } from '../lib/patterns';
+import { buildCollection, collectionStats } from '../lib/collection';
 
 type Period = 'week' | 'month' | 'year' | 'all';
 
@@ -169,6 +176,21 @@ export default function StatsScreen() {
       }))
       .sort((a, b) => b.value - a.value);
   }, [filteredLogs]);
+
+  // ── 업적 / 패턴 / 도감 (전체 기간 기준) ──
+  const achievements = useMemo(() => evaluateAchievements(logs), [logs]);
+  const insights = useMemo(() => extractInsights(logs), [logs]);
+  const collection = useMemo(() => {
+    const entries = buildCollection(logs);
+    return collectionStats(entries);
+  }, [logs]);
+  const [achievementFilter, setAchievementFilter] = useState<AchievementCategory | 'all'>('all');
+  const [collectionExpanded, setCollectionExpanded] = useState(false);
+
+  const visibleAchievements = useMemo(() => {
+    if (achievementFilter === 'all') return achievements.all;
+    return achievements.all.filter((a) => a.category === achievementFilter);
+  }, [achievements, achievementFilter]);
 
   // 기간별 일자/월자 차트 데이터
   const chartData = useMemo(() => {
@@ -540,6 +562,208 @@ export default function StatsScreen() {
                 </View>
               );
             })}
+          </View>
+        )}
+
+        {/* 📊 패턴 인사이트 */}
+        {insights.length > 0 && (
+          <View style={styles.milestoneCard}>
+            <Text style={styles.milestoneHeader}>📊 나의 음주 패턴</Text>
+            {insights.map((ins, i) => (
+              <View key={i} style={styles.insightRow}>
+                <Text style={styles.insightIcon}>{ins.icon}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.insightHeadline}>{ins.headline}</Text>
+                  {ins.detail ? (
+                    <Text style={styles.insightDetail}>{ins.detail}</Text>
+                  ) : null}
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* 🏆 업적 */}
+        <View style={styles.milestoneCard}>
+          <View style={styles.achHeaderRow}>
+            <Text style={styles.milestoneHeader}>🏆 업적</Text>
+            <Text style={styles.achCountText}>
+              {achievements.unlockedCount} / {achievements.totalCount}
+            </Text>
+          </View>
+          {/* 진행률 바 */}
+          <View style={styles.achOverallBg}>
+            <View
+              style={[
+                styles.achOverallFill,
+                { width: `${Math.max(achievements.unlockedPercent, 2)}%` },
+              ]}
+            />
+          </View>
+
+          {/* 카테고리 필터 */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginTop: spacing.md, marginBottom: spacing.sm }}
+          >
+            <TouchableOpacity
+              onPress={() => setAchievementFilter('all')}
+              style={[
+                styles.achFilterChip,
+                achievementFilter === 'all' && styles.achFilterChipActive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.achFilterText,
+                  achievementFilter === 'all' && styles.achFilterTextActive,
+                ]}
+              >
+                전체
+              </Text>
+            </TouchableOpacity>
+            {(Object.keys(ACH_CATEGORY_LABELS) as AchievementCategory[]).map((cat) => (
+              <TouchableOpacity
+                key={cat}
+                onPress={() => setAchievementFilter(cat)}
+                style={[
+                  styles.achFilterChip,
+                  achievementFilter === cat && styles.achFilterChipActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.achFilterText,
+                    achievementFilter === cat && styles.achFilterTextActive,
+                  ]}
+                >
+                  {ACH_CATEGORY_LABELS[cat]}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {/* 업적 리스트 */}
+          {visibleAchievements.map((a) => {
+            const pct = a.target > 0 ? (a.progress / a.target) * 100 : 0;
+            return (
+              <View
+                key={a.id}
+                style={[
+                  styles.achItem,
+                  a.unlocked && styles.achItemUnlocked,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.achEmoji,
+                    !a.unlocked && styles.achEmojiLocked,
+                  ]}
+                >
+                  {a.emoji}
+                </Text>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.achTitleRow}>
+                    <Text
+                      style={[
+                        styles.achTitle,
+                        !a.unlocked && styles.achTitleLocked,
+                      ]}
+                    >
+                      {a.title}
+                    </Text>
+                    {a.unlocked ? (
+                      <Text style={styles.achBadgeDone}>✓ 달성</Text>
+                    ) : (
+                      <Text style={styles.achBadgeProgress}>
+                        {a.progress}
+                        {a.unit ? a.unit : ''} / {a.target}
+                        {a.unit ? a.unit : ''}
+                      </Text>
+                    )}
+                  </View>
+                  <Text style={styles.achDesc}>{a.desc}</Text>
+                  {!a.unlocked && (
+                    <View style={styles.achProgressBg}>
+                      <View
+                        style={[
+                          styles.achProgressFill,
+                          { width: `${Math.max(pct, 2)}%` },
+                        ]}
+                      />
+                    </View>
+                  )}
+                </View>
+              </View>
+            );
+          })}
+        </View>
+
+        {/* 📚 도감 */}
+        {collection.totalUnique > 0 && (
+          <View style={styles.milestoneCard}>
+            <TouchableOpacity
+              onPress={() => setCollectionExpanded(!collectionExpanded)}
+              activeOpacity={0.7}
+              style={styles.collectionHeaderRow}
+            >
+              <Text style={styles.milestoneHeader}>📚 주류 도감</Text>
+              <Text style={styles.collectionCount}>
+                {collection.totalUnique}종
+              </Text>
+              <Text style={styles.collectionChevron}>
+                {collectionExpanded ? '⌃' : '⌄'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* 주종별 집계 */}
+            <View style={styles.collectionChips}>
+              {collection.categoryCounts.map((c) => (
+                <View
+                  key={c.category}
+                  style={[
+                    styles.collectionChip,
+                    { backgroundColor: CATEGORY_COLORS[c.category] + '33' },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.collectionChipDot,
+                      { backgroundColor: CATEGORY_COLORS[c.category] },
+                    ]}
+                  />
+                  <Text style={styles.collectionChipText}>
+                    {CATEGORY_LABELS[c.category]} {c.count}종
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            {/* 펼치면 전체 목록 표시 */}
+            {collectionExpanded && (
+              <View style={styles.collectionList}>
+                {(Object.entries(collection.byCategory) as any[])
+                  .filter(([, list]) => list.length > 0)
+                  .map(([cat, list]) => (
+                    <View key={cat} style={styles.collectionGroup}>
+                      <Text style={styles.collectionGroupTitle}>
+                        {CATEGORY_LABELS[cat as DrinkCategory]}
+                      </Text>
+                      {list.map((e: any) => (
+                        <View key={e.catalog.id} style={styles.collectionEntry}>
+                          <Text style={styles.collectionEntryName}>
+                            {e.catalog.name}
+                          </Text>
+                          <Text style={styles.collectionEntryMeta}>
+                            {e.timesDrunk}회 · {e.totalBottles.toFixed(1).replace(/\.0$/, '')}병
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  ))}
+              </View>
+            )}
           </View>
         )}
 
@@ -998,5 +1222,202 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
     paddingVertical: spacing.sm,
+  },
+
+  // ── 패턴 인사이트 ──
+  insightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    gap: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  insightIcon: {
+    fontSize: 28,
+  },
+  insightHeadline: {
+    fontSize: fontSize.sm,
+    color: colors.textPrimary,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  insightDetail: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+
+  // ── 업적 ──
+  achHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  achCountText: {
+    fontSize: fontSize.sm,
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  achOverallBg: {
+    height: 8,
+    backgroundColor: colors.surfaceLight,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  achOverallFill: {
+    height: '100%',
+    backgroundColor: colors.primary,
+    borderRadius: 4,
+  },
+  achFilterChip: {
+    backgroundColor: colors.surfaceLight,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: borderRadius.full,
+    marginRight: spacing.xs,
+  },
+  achFilterChipActive: {
+    backgroundColor: colors.primary,
+  },
+  achFilterText: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+  },
+  achFilterTextActive: {
+    color: colors.textInverse,
+    fontWeight: '700',
+  },
+  achItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    gap: spacing.md,
+    borderRadius: borderRadius.sm,
+    marginBottom: 4,
+  },
+  achItemUnlocked: {
+    backgroundColor: colors.surfaceLight,
+  },
+  achEmoji: {
+    fontSize: 28,
+  },
+  achEmojiLocked: {
+    opacity: 0.35,
+  },
+  achTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  achTitle: {
+    fontSize: fontSize.sm,
+    color: colors.textPrimary,
+    fontWeight: '700',
+    flex: 1,
+  },
+  achTitleLocked: {
+    color: colors.textSecondary,
+  },
+  achBadgeDone: {
+    fontSize: fontSize.xs,
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  achBadgeProgress: {
+    fontSize: fontSize.xs,
+    color: colors.textTertiary,
+    fontWeight: '600',
+  },
+  achDesc: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    marginTop: 2,
+    marginBottom: 4,
+  },
+  achProgressBg: {
+    height: 4,
+    backgroundColor: colors.surfaceLight,
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginTop: 4,
+  },
+  achProgressFill: {
+    height: '100%',
+    backgroundColor: colors.primary,
+    borderRadius: 2,
+  },
+
+  // ── 도감 ──
+  collectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  collectionCount: {
+    fontSize: fontSize.sm,
+    color: colors.primary,
+    fontWeight: '700',
+    flex: 1,
+  },
+  collectionChevron: {
+    fontSize: 18,
+    color: colors.textSecondary,
+  },
+  collectionChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  collectionChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 5,
+    borderRadius: borderRadius.full,
+  },
+  collectionChipDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  collectionChipText: {
+    fontSize: fontSize.xs,
+    color: colors.textPrimary,
+    fontWeight: '600',
+  },
+  collectionList: {
+    marginTop: spacing.md,
+  },
+  collectionGroup: {
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  collectionGroupTitle: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    fontWeight: '700',
+    marginBottom: spacing.xs,
+  },
+  collectionEntry: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  collectionEntryName: {
+    fontSize: fontSize.sm,
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  collectionEntryMeta: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
   },
 });

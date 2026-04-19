@@ -13,10 +13,11 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
 import { supabase } from '../lib/supabase';
-import { DrinkLog, CATEGORY_LABELS, MOOD_ICONS } from '../types';
+import { DrinkLog, CATEGORY_LABELS, MOOD_ICONS, DrinkCategory } from '../types';
 import { isCurrentUserAdmin } from '../lib/admin';
-import { getCurrentBadge, getNextBadge } from '../constants/milestones';
+import { getCurrentBadge, getNextBadge, getCategoryProgress } from '../constants/milestones';
 import { WEATHER_ICONS, WeatherCode } from '../lib/weather';
+import { topCategory } from '../lib/patterns';
 
 export default function HomeScreen({ navigation }: any) {
   const [nickname, setNickname] = useState<string>('');
@@ -31,6 +32,10 @@ export default function HomeScreen({ navigation }: any) {
     cost: number | null;
   }>({ bottles: null, cost: null });
   const [totalLifetimeMl, setTotalLifetimeMl] = useState(0);
+  const [mainCategory, setMainCategory] = useState<{
+    category: DrinkCategory;
+    ml: number;
+  } | null>(null);
   const [recentLogs, setRecentLogs] = useState<DrinkLog[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -111,10 +116,10 @@ export default function HomeScreen({ navigation }: any) {
         cost: lwCost === 0 ? null : thisCost - lwCost,
       });
 
-      // ③ 전체 기록 (뱃지 + 연속 음주일 — 한 번만 쿼리)
+      // ③ 전체 기록 (뱃지 + 연속 음주일 + 메인 주종 — 한 번만 쿼리)
       const { data: allLogs } = await supabase
         .from('drink_log')
-        .select('logged_at, quantity_ml, bottles, drink_catalog(volume_ml)')
+        .select('logged_at, quantity_ml, bottles, drink_catalog(category, volume_ml)')
         .eq('user_id', user.id)
         .order('logged_at', { ascending: false });
 
@@ -125,6 +130,22 @@ export default function HomeScreen({ navigation }: any) {
           return s + ml;
         }, 0);
         setTotalLifetimeMl(total);
+
+        // 메인 주종 (가장 많이 마신 카테고리 누적 ml)
+        const catMl: Partial<Record<DrinkCategory, number>> = {};
+        allLogs.forEach((l: any) => {
+          const cat = l.drink_catalog?.category as DrinkCategory | undefined;
+          if (!cat) return;
+          const ml = l.quantity_ml ?? (l.drink_catalog?.volume_ml ?? 0) * (l.bottles || 0);
+          catMl[cat] = (catMl[cat] || 0) + ml;
+        });
+        const entries = Object.entries(catMl) as [DrinkCategory, number][];
+        if (entries.length > 0) {
+          const [topCat, topMl] = entries.sort((a, b) => b[1] - a[1])[0];
+          setMainCategory({ category: topCat, ml: topMl });
+        } else {
+          setMainCategory(null);
+        }
 
         // 연속 음주일 계산
         const today = new Date();
@@ -318,6 +339,42 @@ export default function HomeScreen({ navigation }: any) {
             </View>
           </View>
         </View>
+
+        {/* 🎯 메인 주종 마일스톤 배너 */}
+        {mainCategory && (() => {
+          const prog = getCategoryProgress(mainCategory.category, mainCategory.ml);
+          if (!prog.next) return null;
+          const remainMl = prog.next.ml - mainCategory.ml;
+          const remainLabel = remainMl >= 1000
+            ? `${(remainMl / 1000).toFixed(1)}L`
+            : `${Math.round(remainMl)}ml`;
+          return (
+            <TouchableOpacity
+              style={styles.catBanner}
+              onPress={() => navigation.navigate('통계')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.catBannerEmoji}>{prog.next.emoji}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.catBannerTitle}>
+                  {CATEGORY_LABELS[mainCategory.category]} {prog.next.icon}까지
+                </Text>
+                <Text style={styles.catBannerSub}>
+                  {remainLabel} 남았어요 · {Math.round(prog.progressPercent)}%
+                </Text>
+                <View style={styles.catBannerBg}>
+                  <View
+                    style={[
+                      styles.catBannerFill,
+                      { width: `${Math.max(prog.progressPercent, 2)}%` },
+                    ]}
+                  />
+                </View>
+              </View>
+              <Text style={styles.catBannerChevron}>›</Text>
+            </TouchableOpacity>
+          );
+        })()}
 
         {/* 최근 기록 */}
         <View style={styles.recentSection}>
@@ -577,5 +634,47 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     color: colors.textTertiary,
     marginTop: 2,
+  },
+
+  // ── 메인 주종 배너 ──
+  catBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    gap: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.primary + '33',
+  },
+  catBannerEmoji: {
+    fontSize: 36,
+  },
+  catBannerTitle: {
+    fontSize: fontSize.md,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 2,
+  },
+  catBannerSub: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    marginBottom: 6,
+  },
+  catBannerBg: {
+    height: 5,
+    backgroundColor: colors.surfaceLight,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  catBannerFill: {
+    height: '100%',
+    backgroundColor: colors.primary,
+    borderRadius: 3,
+  },
+  catBannerChevron: {
+    fontSize: 28,
+    color: colors.textTertiary,
   },
 });

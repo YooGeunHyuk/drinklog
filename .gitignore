@@ -9,6 +9,9 @@ dist/
 web-build/
 expo-env.d.ts
 
+# Supabase CLI 임시 캐시
+supabase/.temp/
+
 # Native
 .kotlin/
 *.orig.*
