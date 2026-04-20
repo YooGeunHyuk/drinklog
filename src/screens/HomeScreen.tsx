@@ -15,7 +15,12 @@ import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
 import { supabase } from '../lib/supabase';
 import { DrinkLog, CATEGORY_LABELS, MOOD_ICONS, DrinkCategory } from '../types';
 import { isCurrentUserAdmin } from '../lib/admin';
-import { getCurrentBadge, getNextBadge, getCategoryProgress } from '../constants/milestones';
+import {
+  getCurrentBadge,
+  getNextBadge,
+  getCategoryProgress,
+  computeJudoScore,
+} from '../constants/milestones';
 import { WEATHER_ICONS, WeatherCode } from '../lib/weather';
 import { topCategory } from '../lib/patterns';
 
@@ -32,6 +37,7 @@ export default function HomeScreen({ navigation }: any) {
     cost: number | null;
   }>({ bottles: null, cost: null });
   const [totalLifetimeMl, setTotalLifetimeMl] = useState(0);
+  const [judoScore, setJudoScore] = useState(0);
   const [mainCategory, setMainCategory] = useState<{
     category: DrinkCategory;
     ml: number;
@@ -130,6 +136,14 @@ export default function HomeScreen({ navigation }: any) {
           return s + ml;
         }, 0);
         setTotalLifetimeMl(total);
+
+        // 주도 점수 = ml + 술자리 수 × 1000 (하루 단위 = 한 술자리)
+        const sessionKeys = new Set<string>();
+        allLogs.forEach((l: any) => {
+          const d = new Date(l.logged_at);
+          sessionKeys.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
+        });
+        setJudoScore(computeJudoScore(total, sessionKeys.size));
 
         // 메인 주종 (가장 많이 마신 카테고리 누적 ml)
         const catMl: Partial<Record<DrinkCategory, number>> = {};
@@ -231,7 +245,7 @@ export default function HomeScreen({ navigation }: any) {
               activeOpacity={1}
             >
               <Text style={styles.nicknameOf}>
-                <Text style={{ color: getCurrentBadge(totalLifetimeMl).textColor }}>{nickname || '나'}</Text>
+                <Text style={{ color: getCurrentBadge(judoScore).textColor }}>{nickname || '나'}</Text>
                 <Text style={{ color: colors.textSecondary, fontSize: fontSize.sm }}>의</Text>
               </Text>
               <Text style={styles.appName}>酒路{isAdmin ? ' 🛠' : ''}</Text>
@@ -239,7 +253,7 @@ export default function HomeScreen({ navigation }: any) {
 
             {/* 우: 뱃지 박스 + 누적량 */}
             {(() => {
-              const badge = getCurrentBadge(totalLifetimeMl);
+              const badge = getCurrentBadge(judoScore);
               const totalLabel = totalLifetimeMl >= 1000
                 ? `${(totalLifetimeMl / 1000).toFixed(1)}L`
                 : `${Math.round(totalLifetimeMl)}ml`;

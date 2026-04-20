@@ -17,7 +17,13 @@ import {
   getNextBadge,
   getMilestoneProgress,
   getCategoryProgress,
+  getCurrentMedal,
+  getNextMedal,
+  getMedalProgress,
+  computeJudoScore,
+  countSessions,
   BADGES,
+  MEDALS,
 } from '../constants/milestones';
 import {
   evaluateAchievements,
@@ -136,9 +142,21 @@ export default function StatsScreen() {
     }, 0);
   }, [logs]);
 
-  const badge = useMemo(() => getCurrentBadge(totalLifetimeMl), [totalLifetimeMl]);
-  const nextBadge = useMemo(() => getNextBadge(totalLifetimeMl), [totalLifetimeMl]);
+  // 주도 점수 = 누적 ml + 술자리 수 × 1000
+  const totalSessions = useMemo(() => countSessions(logs), [logs]);
+  const judoScore = useMemo(
+    () => computeJudoScore(totalLifetimeMl, totalSessions),
+    [totalLifetimeMl, totalSessions],
+  );
+
+  const badge = useMemo(() => getCurrentBadge(judoScore), [judoScore]);
+  const nextBadge = useMemo(() => getNextBadge(judoScore), [judoScore]);
   const milestone = useMemo(() => getMilestoneProgress(totalLifetimeMl), [totalLifetimeMl]);
+
+  // 주연(酒緣) 훈장 — 술자리 수 기반
+  const medal = useMemo(() => getCurrentMedal(totalSessions), [totalSessions]);
+  const nextMedal = useMemo(() => getNextMedal(totalSessions), [totalSessions]);
+  const medalProgress = useMemo(() => getMedalProgress(totalSessions), [totalSessions]);
 
   // ── 주종별 누적 음주량 (마일스톤용, 전체 기간) ──
   const categoryLifetimeMl = useMemo(() => {
@@ -453,7 +471,7 @@ export default function StatsScreen() {
                 </Text>
               </View>
               <Text style={styles.nextBadgeMl}>
-                ({nextBadge.ml >= 1000 ? `${(nextBadge.ml / 1000).toFixed(0)}L` : `${nextBadge.ml}ml`} 달성)
+                (주도 점수 {nextBadge.score.toLocaleString()} 달성)
               </Text>
             </View>
           )}
@@ -461,7 +479,7 @@ export default function StatsScreen() {
           {/* 전체 등급 로드맵 */}
           <View style={styles.badgeRoadmap}>
             {BADGES.map((b) => {
-              const achieved = totalLifetimeMl >= b.ml;
+              const achieved = judoScore >= b.score;
               return (
                 <View key={b.rank} style={styles.roadmapItem}>
                   <View
@@ -481,6 +499,94 @@ export default function StatsScreen() {
                     ]}
                   >
                     {b.title}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+
+          {/* 주도 점수 한 줄 */}
+          <Text style={styles.judoScoreLine}>
+            주도 점수 <Text style={styles.judoScoreValue}>{judoScore.toLocaleString()}</Text>
+            <Text style={styles.judoScoreHint}>  ·  누적 ml + 술자리 × 1,000</Text>
+          </Text>
+        </View>
+
+        {/* 🎖 주연(酒緣) 훈장 — 술자리 수 기반 */}
+        <View style={styles.milestoneCard}>
+          <Text style={styles.milestoneHeader}>🎖 주연(酒緣) 훈장</Text>
+          <Text style={styles.medalIntro}>
+            함께한 술자리의 기록 — 지금까지 {totalSessions.toLocaleString()}회
+          </Text>
+
+          {/* 현재 훈장 */}
+          <View style={styles.badgeRow}>
+            {medal ? (
+              <View style={[styles.badgePill, { backgroundColor: medal.color }]}>
+                <Text style={styles.badgePillEmoji}>{medal.emoji}</Text>
+                <Text style={[styles.badgePillTitle, { color: medal.textColor }]}>
+                  {medal.title}
+                </Text>
+              </View>
+            ) : (
+              <View style={[styles.badgePill, { backgroundColor: colors.surfaceLight }]}>
+                <Text style={styles.badgePillEmoji}>✨</Text>
+                <Text style={[styles.badgePillTitle, { color: colors.textSecondary }]}>
+                  첫 건배를 기다리는 중
+                </Text>
+              </View>
+            )}
+          </View>
+          {medal && <Text style={styles.badgeDesc}>{medal.desc}</Text>}
+
+          {/* 다음 훈장 진행률 */}
+          {nextMedal && (
+            <View style={styles.milestoneNextBox}>
+              <View style={styles.milestoneProgressRow}>
+                <Text style={styles.milestoneNextLabel}>
+                  다음: {nextMedal.emoji} {nextMedal.title}
+                </Text>
+                <Text style={styles.milestoneNextPct}>
+                  {Math.round(medalProgress.progressPercent)}%
+                </Text>
+              </View>
+              <View style={styles.milestoneProgressBg}>
+                <View
+                  style={[
+                    styles.milestoneProgressFill,
+                    { width: `${Math.max(medalProgress.progressPercent, 2)}%` },
+                  ]}
+                />
+              </View>
+              <Text style={styles.milestoneNextSub}>
+                {nextMedal.sessions.toLocaleString()}회 달성 시 · 앞으로 {Math.max(nextMedal.sessions - totalSessions, 0)}회
+              </Text>
+            </View>
+          )}
+
+          {/* 훈장 로드맵 */}
+          <View style={styles.badgeRoadmap}>
+            {MEDALS.map((m) => {
+              const achieved = totalSessions >= m.sessions;
+              return (
+                <View key={m.rank} style={styles.roadmapItem}>
+                  <View
+                    style={[
+                      styles.roadmapDot,
+                      achieved
+                        ? { backgroundColor: m.color }
+                        : { backgroundColor: colors.surfaceLight },
+                    ]}
+                  >
+                    <Text style={styles.roadmapEmoji}>{m.emoji}</Text>
+                  </View>
+                  <Text
+                    style={[
+                      styles.roadmapLabel,
+                      achieved && { color: colors.textPrimary, fontWeight: '600' },
+                    ]}
+                  >
+                    {m.title}
                   </Text>
                 </View>
               );
@@ -1104,6 +1210,27 @@ const styles = StyleSheet.create({
     color: colors.textTertiary,
   },
   // 등급 로드맵
+  judoScoreLine: {
+    marginTop: spacing.md,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+  },
+  judoScoreValue: {
+    color: colors.textPrimary,
+    fontWeight: '700',
+  },
+  judoScoreHint: {
+    fontSize: fontSize.xs,
+    color: colors.textTertiary ?? colors.textSecondary,
+  },
+  medalIntro: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
+  },
   badgeRoadmap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
