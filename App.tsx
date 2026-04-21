@@ -7,11 +7,14 @@ import LoginScreen from './src/screens/LoginScreen';
 import ProfileSetupScreen from './src/screens/ProfileSetupScreen';
 import { supabase } from './src/lib/supabase';
 import { colors } from './src/constants/theme';
+import { useAppFonts } from './src/theme/fonts';
 
 type AppState = 'loading' | 'login' | 'profile_setup' | 'main';
 
 export default function App() {
   const [appState, setAppState] = useState<AppState>('loading');
+  // Pretendard 폰트 로드 (파일이 비어 있으면 즉시 true 반환 → 시스템 폰트 폴백)
+  const [fontsLoaded] = useAppFonts();
 
   // 앱 시작 시 세션 확인
   useEffect(() => {
@@ -54,7 +57,7 @@ export default function App() {
     }
   };
 
-  if (appState === 'loading') {
+  if (appState === 'loading' || !fontsLoaded) {
     return (
       <View
         style={{
