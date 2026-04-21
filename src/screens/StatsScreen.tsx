@@ -738,6 +738,10 @@ export default function StatsScreen() {
               ]}
             />
           </View>
+          {/* 이스터에그 카운트 (숨김 업적 해금 현황) */}
+          <Text style={styles.achSecretCount}>
+            🥚 숨겨진 업적 {achievements.secretUnlocked} / {achievements.secretTotal} 해금
+          </Text>
 
           {achievementsOpen && (
           <>
@@ -1446,6 +1450,12 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: colors.primary,
     borderRadius: 4,
+  },
+  achSecretCount: {
+    marginTop: spacing.xs,
+    fontSize: fontSize.xs,
+    color: colors.textTertiary,
+    textAlign: 'right',
   },
   achFilterChip: {
     backgroundColor: colors.surfaceLight,
