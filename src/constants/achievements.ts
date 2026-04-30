@@ -2,6 +2,7 @@
 // 모든 업적은 로그 배열에서 클라이언트 사이드로 계산 (DB 변경 없음)
 
 import { DrinkLog, DrinkCategory, DrinkMood } from '../types';
+import { hasDrinkLogPhoto } from '../lib/photos';
 
 export type AchievementCategory =
   | 'logging'      // 기록 자체
@@ -284,7 +285,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     title: '첫 라벨샷',
     desc: '사진을 첨부한 첫 기록.',
     category: 'logging',
-    check: (logs) => makeProgress(logs.filter((l) => l.photo_url).length, 1, '개'),
+    check: (logs) => makeProgress(logs.filter(hasDrinkLogPhoto).length, 1, '개'),
   },
   {
     id: 'photo-10',
@@ -292,7 +293,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     title: '라벨 수집가',
     desc: '사진이 있는 기록 10개.',
     category: 'logging',
-    check: (logs) => makeProgress(logs.filter((l) => l.photo_url).length, 10, '개'),
+    check: (logs) => makeProgress(logs.filter(hasDrinkLogPhoto).length, 10, '개'),
   },
   {
     id: 'memo-long',

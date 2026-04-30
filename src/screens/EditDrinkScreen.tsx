@@ -24,6 +24,7 @@ import {
   MOOD_ICONS,
 } from '../types';
 import { uploadDrinkPhoto, uploadDrinkPhotos, deleteDrinkPhoto } from '../lib/storage';
+import { getDrinkLogPhotos, buildDrinkLogPhotoFields } from '../lib/photos';
 import { WEATHER_ICONS, WEATHER_LABELS, WeatherCode } from '../lib/weather';
 import Icon from '../components/Icon';
 
@@ -93,10 +94,7 @@ export default function EditDrinkScreen({ route, navigation }: Props) {
       setCompanions(l.companions ?? '');
       setMood(l.mood ?? null);
       // 사진 — photo_urls(배열) 우선, 없으면 photo_url(legacy) fallback
-      const initialPhotos = l.photo_urls && l.photo_urls.length > 0
-        ? l.photo_urls
-        : (l.photo_url ? [l.photo_url] : []);
-      setExistingPhotos(initialPhotos);
+      setExistingPhotos(getDrinkLogPhotos(l));
       setNewPhotos([]);
       setRemovedExistingUrls([]);
 
@@ -175,8 +173,8 @@ export default function EditDrinkScreen({ route, navigation }: Props) {
         await deleteDrinkPhoto(url).catch(() => {});
       }
 
-      // photo_url (legacy)에는 첫 사진을 넣어 backward compat 유지
-      const photoUrlToSet = finalUrls.length > 0 ? finalUrls[0] : null;
+      // photo_url(legacy) + photo_urls(현행) 동시 업데이트로 backward compat 유지
+      const photoFields = buildDrinkLogPhotoFields(finalUrls);
 
       const { error } = await supabase
         .from('drink_log')
@@ -189,8 +187,7 @@ export default function EditDrinkScreen({ route, navigation }: Props) {
           location: location.trim() || null,
           companions: companions.trim() || null,
           mood: mood,
-          photo_url: photoUrlToSet,
-          photo_urls: finalUrls,
+          ...photoFields,
         })
         .eq('id', logId);
 

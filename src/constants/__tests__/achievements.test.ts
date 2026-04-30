@@ -150,6 +150,18 @@ describe('logging achievements', () => {
     expect(rShort.all.find((a) => a.id === 'memo-long')!.unlocked).toBe(false);
     expect(rLong.all.find((a) => a.id === 'memo-long')!.unlocked).toBe(true);
   });
+
+  it('photo-first counts logs with photo_urls (new schema)', () => {
+    const log = makeLog({ photo_url: null, photo_urls: ['https://x/a.jpg'] });
+    const r = evaluateAchievements([log]);
+    expect(r.all.find((a) => a.id === 'photo-first')!.unlocked).toBe(true);
+  });
+
+  it('photo-first still counts legacy photo_url', () => {
+    const log = makeLog({ photo_url: 'https://x/legacy.jpg', photo_urls: null });
+    const r = evaluateAchievements([log]);
+    expect(r.all.find((a) => a.id === 'photo-first')!.unlocked).toBe(true);
+  });
 });
 
 // ── 연속 (streak) ───────────────────────────────────────────────
