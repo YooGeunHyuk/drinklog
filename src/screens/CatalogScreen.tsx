@@ -14,6 +14,7 @@ import { colors, spacing, fontSize, borderRadius, iconSize } from '../constants/
 import { supabase } from '../lib/supabase';
 import { DrinkLog, DrinkCatalog, DrinkCategory, CATEGORY_LABELS } from '../types';
 import Icon from '../components/Icon';
+import { ErrorBanner } from '../components/ErrorBanner';
 
 type FilterCategory = 'all' | DrinkCategory;
 
@@ -39,9 +40,11 @@ export default function CatalogScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<FilterCategory>('all');
   const [searchText, setSearchText] = useState('');
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadLogs = useCallback(async () => {
     try {
+      setLoadError(null);
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -57,6 +60,7 @@ export default function CatalogScreen() {
       setLogs((data as DrinkLog[]) ?? []);
     } catch (err: any) {
       console.error('카탈로그 로드 실패:', err.message);
+      setLoadError(err?.message ?? '알 수 없는 오류가 발생했어요.');
     }
   }, []);
 
@@ -133,6 +137,11 @@ export default function CatalogScreen() {
           />
         }
       >
+        <ErrorBanner
+          error={loadError}
+          onRetry={loadLogs}
+          onDismiss={() => setLoadError(null)}
+        />
         <Text style={styles.title}>주류 카탈로그</Text>
         <Text style={styles.subtitle}>
           내가 마셔본 술 {uniqueCount}종

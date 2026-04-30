@@ -26,6 +26,7 @@ import { WEATHER_ICONS, WeatherCode } from '../lib/weather';
 import { topCategory } from '../lib/patterns';
 import Icon from '../components/Icon';
 import { getCategoryIcon } from '../constants/categoryIcons';
+import { ErrorBanner } from '../components/ErrorBanner';
 
 export default function HomeScreen({ navigation }: any) {
   const [nickname, setNickname] = useState<string>('');
@@ -49,6 +50,7 @@ export default function HomeScreen({ navigation }: any) {
   const [recentLogs, setRecentLogs] = useState<DrinkLog[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // 관리자 뱃지 — 한 번만 체크
   React.useEffect(() => {
@@ -73,6 +75,7 @@ export default function HomeScreen({ navigation }: any) {
 
   const loadData = useCallback(async () => {
     try {
+      setLoadError(null);
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -200,6 +203,7 @@ export default function HomeScreen({ navigation }: any) {
       setRecentLogs((recent as DrinkLog[]) ?? []);
     } catch (err: any) {
       console.error('홈 데이터 로드 실패:', err.message);
+      setLoadError(err?.message ?? '알 수 없는 오류가 발생했어요.');
     }
   }, []);
 
@@ -237,6 +241,11 @@ export default function HomeScreen({ navigation }: any) {
           />
         }
       >
+        <ErrorBanner
+          error={loadError}
+          onRetry={loadData}
+          onDismiss={() => setLoadError(null)}
+        />
         {/* 헤더 */}
         <View style={styles.header}>
           <View style={styles.headerRow}>

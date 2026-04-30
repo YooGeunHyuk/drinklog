@@ -34,6 +34,7 @@ import { extractInsights } from '../lib/patterns';
 import { buildCollection, collectionStats } from '../lib/collection';
 import InfoBubble, { BubbleData } from '../components/InfoBubble';
 import Icon from '../components/Icon';
+import { ErrorBanner } from '../components/ErrorBanner';
 
 type Period = 'week' | 'month' | 'year' | 'all';
 
@@ -106,9 +107,11 @@ export default function StatsScreen() {
   };
   const closeBubble = () => setBubble(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadLogs = useCallback(async () => {
     try {
+      setLoadError(null);
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -124,6 +127,7 @@ export default function StatsScreen() {
       setLogs((data as DrinkLog[]) ?? []);
     } catch (err: any) {
       console.error('통계 로드 실패:', err.message);
+      setLoadError(err?.message ?? '알 수 없는 오류가 발생했어요.');
     }
   }, []);
 
@@ -351,6 +355,11 @@ export default function StatsScreen() {
           />
         }
       >
+        <ErrorBanner
+          error={loadError}
+          onRetry={loadLogs}
+          onDismiss={() => setLoadError(null)}
+        />
         <Text style={styles.title}>통계</Text>
 
         {/* 기간 토글 */}
