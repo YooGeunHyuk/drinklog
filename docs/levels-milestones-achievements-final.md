@@ -6,7 +6,7 @@
 > - 마일스톤 / 레벨: [`src/constants/milestones.ts`](../src/constants/milestones.ts)
 > - 업적: [`src/constants/achievements.ts`](../src/constants/achievements.ts)
 >
-> **합계**: 전역 마일스톤 34 · 주종별 마일스톤 47 · 레벨 99 · 업적 88(공개 73 / 숨김 15)
+> **합계**: 전역 마일스톤 34 · 주종별 마일스톤 47 · 레벨 99 · 업적 101(공개 86 / 숨김 15)
 
 ---
 
@@ -338,7 +338,7 @@ thr(n) = round(30 × (n−1)^2.15)
 
 ## 4. 업적 시스템 (ACHIEVEMENTS)
 
-총 **88개** — 공개 73 + 숨김(이스터에그) 15. 10개 카테고리로 분류. 모든 업적은 로그 배열에서 클라이언트 사이드로 계산 (DB 변경 없음).
+총 **101개** — 공개 86 + 숨김(이스터에그) 15. 10개 카테고리로 분류. 모든 업적은 로그 배열에서 클라이언트 사이드로 계산 (DB 변경 없음).
 
 ### 4.1 카테고리 라벨
 
@@ -529,4 +529,4 @@ UI에선 🔒 ??? 로 표시되다가 해금 시 공개.
 | 전역 부피 마일스톤 (`MILESTONES`) | 34 | 360ml ~ 50,000L |
 | 주종별 마일스톤 (`CATEGORY_MILESTONES`) | 47 | 7 카테고리 (soju 8 / beer 8 / makgeolli 7 / wine 7 / whiskey 7 / spirits 6 / etc 4) |
 | 레벨 (`LEVELS`) | 99 | 9 Arc × 평균 11 레벨 |
-| 업적 (`ACHIEVEMENTS`) | 88 | 공개 73 + 숨김 15 / 10 카테고리 |
+| 업적 (`ACHIEVEMENTS`) | 101 | 공개 86 + 숨김 15 / 10 카테고리 |
