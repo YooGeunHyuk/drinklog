@@ -10,3 +10,4 @@ export { colors, palette } from '../theme/colors';
 export { spacing, borderRadius } from '../theme/spacing';
 export { fontSize, fontFamily, typography } from '../theme/typography';
 export { shadows } from '../theme/shadows';
+export { iconSize } from '../theme/iconSize';
