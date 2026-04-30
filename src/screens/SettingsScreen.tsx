@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
   },
   dangerText: {
     fontSize: fontSize.md,
-    color: '#E53935',
+    color: colors.tone.terracotta,
     fontWeight: '500',
   },
 });

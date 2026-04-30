@@ -11,9 +11,10 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
+import { colors, spacing, fontSize, borderRadius, iconSize } from '../constants/theme';
 import { Gender } from '../types';
 import { supabase } from '../lib/supabase';
+import Icon from '../components/Icon';
 
 interface Props {
   onComplete: () => void;
@@ -84,7 +85,7 @@ export default function ProfileSetupScreen({ onComplete }: Props) {
           {/* 프로필 사진 */}
           <TouchableOpacity style={styles.avatarContainer}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>📷</Text>
+              <Icon name="Camera" size={iconSize.lg} color={colors.textSecondary} />
             </View>
             <Text style={styles.avatarLabel}>사진 추가</Text>
           </TouchableOpacity>
@@ -213,7 +214,7 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
   },
   avatarText: {
-    fontSize: 36,
+    fontSize: iconSize.xl,
   },
   avatarLabel: {
     fontSize: fontSize.sm,
@@ -281,7 +282,7 @@ const styles = StyleSheet.create({
   },
   checkmark: {
     color: colors.textInverse,
-    fontSize: 14,
+    fontSize: iconSize.xs,
     fontWeight: '700',
   },
   checkboxLabel: {
