@@ -1,29 +1,29 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   RefreshControl,
+  Pressable,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
+import { colors, spacing, fontSize, borderRadius, iconSize } from '../constants/theme';
 import { supabase } from '../lib/supabase';
 import { DrinkLog, DrinkCategory, CATEGORY_LABELS } from '../types';
 import {
-  getCurrentBadge,
-  getNextBadge,
+  getLevel,
+  getNextLevel,
+  getLevelProgress,
   getMilestoneProgress,
   getCategoryProgress,
-  getCurrentMedal,
-  getNextMedal,
-  getMedalProgress,
   computeJudoScore,
+  computeStreakBonus,
   countSessions,
-  BADGES,
-  MEDALS,
+  countUniqueDrinks,
+  LEVELS,
 } from '../constants/milestones';
 import {
   evaluateAchievements,
@@ -32,6 +32,8 @@ import {
 } from '../constants/achievements';
 import { extractInsights } from '../lib/patterns';
 import { buildCollection, collectionStats } from '../lib/collection';
+import InfoBubble, { BubbleData } from '../components/InfoBubble';
+import Icon from '../components/Icon';
 
 type Period = 'week' | 'month' | 'year' | 'all';
 
@@ -43,22 +45,66 @@ const PERIOD_LABELS: Record<Period, string> = {
 };
 
 // 카테고리별 색상
+/**
+ * 한글 타이틀을 단어 단위로 두 줄로 분할.
+ * 규칙: 첫 줄이 둘째 줄보다 길거나 같게 (단어 단위 균형 분할).
+ * 공백이 없거나 단어가 1개면 한 줄로 반환.
+ */
+function splitTitleTwoLines(title: string): string {
+  const words = title.split(' ').filter(Boolean);
+  if (words.length <= 1) return title;
+  let best = -1;
+  let bestDiff = Infinity;
+  for (let i = 1; i < words.length; i++) {
+    const first = words.slice(0, i).join(' ');
+    const second = words.slice(i).join(' ');
+    if (first.length < second.length) continue; // 첫줄 ≥ 둘째줄
+    const diff = first.length - second.length;
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      best = i;
+    }
+  }
+  if (best < 0) return title; // 모든 split에서 first < second면 그냥 한 줄
+  return words.slice(0, best).join(' ') + '\n' + words.slice(best).join(' ');
+}
+
+// Earth-tone 매핑 — colors.category와 동기화
 const CATEGORY_COLORS: Record<DrinkCategory, string> = {
-  soju: '#7FB3D5',
-  beer: '#F7CA18',
-  makgeolli: '#F5E6D3',
-  wine: '#922B3E',
-  whiskey: '#D4A574',
-  spirits: '#A074D4',
-  etc: '#808080',
+  soju:      colors.category.soju,      // sage
+  beer:      colors.category.beer,      // peach
+  makgeolli: colors.category.makgeolli, // taupe
+  wine:      colors.category.wine,      // terracotta
+  whiskey:   colors.category.whiskey,   // amber
+  spirits:   colors.category.spirits,   // rose
+  etc:       colors.category.etc,       // coolGray
 };
 
 export default function StatsScreen() {
   const [period, setPeriod] = useState<Period>('week');
   const [logs, setLogs] = useState<DrinkLog[]>([]);
-  const [badgeRoadmapOpen, setBadgeRoadmapOpen] = useState(false);
-  const [medalRoadmapOpen, setMedalRoadmapOpen] = useState(false);
+  const [levelRoadmapOpen, setLevelRoadmapOpen] = useState(false);
   const [achievementsOpen, setAchievementsOpen] = useState(false);
+  // 뱃지/훈장/업적 탭 시 뜨는 말풍선
+  const [bubble, setBubble] = useState<{ key: string; data: BubbleData } | null>(null);
+  // 탭한 아이템의 좌표를 측정해서 말풍선 위치에 전달
+  const anchorRefs = useRef<Map<string, View>>(new Map());
+  const openBubble = (key: string, data: BubbleData) => {
+    // 같은 아이템을 다시 누르면 닫기 (토글)
+    if (bubble?.key === key) {
+      setBubble(null);
+      return;
+    }
+    const node = anchorRefs.current.get(key);
+    if (node) {
+      node.measureInWindow((x, y, width, height) => {
+        setBubble({ key, data: { ...data, anchor: { x, y, width, height } } });
+      });
+    } else {
+      setBubble({ key, data });
+    }
+  };
+  const closeBubble = () => setBubble(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadLogs = useCallback(async () => {
@@ -145,21 +191,19 @@ export default function StatsScreen() {
     }, 0);
   }, [logs]);
 
-  // 주도 점수 = 누적 ml + 술자리 수 × 1000
+  // 주도 점수 (다차원) = ml÷100 + sessions×100 + 연속보너스 + 고유×50
   const totalSessions = useMemo(() => countSessions(logs), [logs]);
+  const streakBonus = useMemo(() => computeStreakBonus(logs), [logs]);
+  const uniqueDrinks = useMemo(() => countUniqueDrinks(logs), [logs]);
   const judoScore = useMemo(
-    () => computeJudoScore(totalLifetimeMl, totalSessions),
-    [totalLifetimeMl, totalSessions],
+    () => computeJudoScore(totalLifetimeMl, totalSessions, streakBonus, uniqueDrinks),
+    [totalLifetimeMl, totalSessions, streakBonus, uniqueDrinks],
   );
 
-  const badge = useMemo(() => getCurrentBadge(judoScore), [judoScore]);
-  const nextBadge = useMemo(() => getNextBadge(judoScore), [judoScore]);
+  const level = useMemo(() => getLevel(judoScore), [judoScore]);
+  const nextLvl = useMemo(() => getNextLevel(judoScore), [judoScore]);
+  const levelProgress = useMemo(() => getLevelProgress(judoScore), [judoScore]);
   const milestone = useMemo(() => getMilestoneProgress(totalLifetimeMl), [totalLifetimeMl]);
-
-  // 주연(酒緣) 훈장 — 술자리 수 기반
-  const medal = useMemo(() => getCurrentMedal(totalSessions), [totalSessions]);
-  const nextMedal = useMemo(() => getNextMedal(totalSessions), [totalSessions]);
-  const medalProgress = useMemo(() => getMedalProgress(totalSessions), [totalSessions]);
 
   // ── 주종별 누적 음주량 (마일스톤용, 전체 기간) ──
   const categoryLifetimeMl = useMemo(() => {
@@ -296,7 +340,7 @@ export default function StatsScreen() {
   const maxBottles = Math.max(...chartData.map((d) => d.bottles), 1);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
@@ -367,7 +411,7 @@ export default function StatsScreen() {
           </Text>
           {filteredLogs.length === 0 ? (
             <View style={styles.chartArea}>
-              <Text style={styles.emptyIcon}>📊</Text>
+              <Icon name="BarChart3" size={iconSize.xl} color={colors.textTertiary} />
               <Text style={styles.emptyText}>
                 이 기간에 기록이 없어요
               </Text>
@@ -414,16 +458,16 @@ export default function StatsScreen() {
           </View>
         )}
 
-        {/* 🏆 나의 음주 여정 카드 */}
+        {/* 🏆 나의 음주 여정 — 통합 레벨 (Lv 1~99) */}
         <View style={styles.milestoneCard}>
           <Text style={styles.milestoneHeader}>🏆 나의 음주 여정</Text>
 
-          {/* 현재 뱃지 + 누적량 */}
+          {/* 현재 레벨 + 누적량 */}
           <View style={styles.badgeRow}>
-            <View style={[styles.badgePill, { backgroundColor: badge.color }]}>
-              <Text style={styles.badgePillEmoji}>{badge.emoji}</Text>
-              <Text style={[styles.badgePillTitle, { color: badge.textColor }]}>
-                {badge.title}
+            <View style={[styles.badgePill, { backgroundColor: level.color }]}>
+              <Text style={styles.badgePillEmoji}>{level.emoji}</Text>
+              <Text style={[styles.badgePillTitle, { color: level.textColor }]}>
+                Lv {level.rank} · {level.title}
               </Text>
             </View>
             <View style={{ flex: 1 }} />
@@ -436,10 +480,9 @@ export default function StatsScreen() {
               </Text>
             </View>
           </View>
-          {/* 등급 설명 */}
-          <Text style={styles.badgeDesc}>{badge.desc}</Text>
+          <Text style={styles.badgeDesc}>{level.desc}</Text>
 
-          {/* 현재 마일스톤 달성 문구 */}
+          {/* 현재 부피 마일스톤 */}
           <View style={styles.milestoneAchieved}>
             <Text style={styles.milestoneEmoji}>
               {milestone.current ? milestone.current.emoji : '🌱'}
@@ -454,7 +497,7 @@ export default function StatsScreen() {
             </View>
           </View>
 
-          {/* 다음 마일스톤 프로그레스 */}
+          {/* 다음 부피 마일스톤 진행률 */}
           {milestone.next && (
             <View style={styles.milestoneNextBox}>
               <View style={styles.milestoneProgressRow}>
@@ -481,160 +524,113 @@ export default function StatsScreen() {
             </View>
           )}
 
-          {/* 다음 등급까지 */}
-          {nextBadge && (
-            <View style={styles.nextBadgeRow}>
-              <Text style={styles.nextBadgeLabel}>다음 등급</Text>
-              <View style={[styles.badgePillSm, { backgroundColor: nextBadge.color }]}>
-                <Text style={styles.badgePillSmEmoji}>{nextBadge.emoji}</Text>
-                <Text style={[styles.badgePillSmTitle, { color: nextBadge.textColor }]}>
-                  {nextBadge.title}
-                </Text>
-              </View>
-              <Text style={styles.nextBadgeMl}>
-                (주도 점수 {nextBadge.score.toLocaleString()} 달성)
-              </Text>
-            </View>
-          )}
-
-          {/* 전체 등급 로드맵 (접기/펼치기) */}
-          <TouchableOpacity
-            style={styles.roadmapToggle}
-            onPress={() => setBadgeRoadmapOpen((v) => !v)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.roadmapToggleText}>
-              전체 47단계 로드맵 {badgeRoadmapOpen ? '접기 ▲' : '보기 ▼'}
-            </Text>
-          </TouchableOpacity>
-          {badgeRoadmapOpen && (
-          <View style={styles.badgeRoadmap}>
-            {BADGES.map((b) => {
-              const achieved = judoScore >= b.score;
-              return (
-                <View key={b.rank} style={styles.roadmapItem}>
-                  <View
-                    style={[
-                      styles.roadmapDot,
-                      achieved
-                        ? { backgroundColor: badge.color === b.color ? colors.primary : b.color }
-                        : { backgroundColor: colors.surfaceLight },
-                    ]}
-                  >
-                    <Text style={styles.roadmapEmoji}>{b.emoji}</Text>
-                  </View>
-                  <Text
-                    style={[
-                      styles.roadmapLabel,
-                      achieved && { color: colors.textPrimary, fontWeight: '600' },
-                    ]}
-                  >
-                    {b.title}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
-          )}
-
-          {/* 주도 점수 한 줄 */}
-          <Text style={styles.judoScoreLine}>
-            주도 점수 <Text style={styles.judoScoreValue}>{judoScore.toLocaleString()}</Text>
-            <Text style={styles.judoScoreHint}>  ·  누적 ml + 술자리 × 1,000</Text>
-          </Text>
-        </View>
-
-        {/* 🎖 주연(酒緣) 훈장 — 술자리 수 기반 */}
-        <View style={styles.milestoneCard}>
-          <Text style={styles.milestoneHeader}>🎖 주연(酒緣) 훈장</Text>
-          <Text style={styles.medalIntro}>
-            함께한 술자리의 기록 — 지금까지 {totalSessions.toLocaleString()}회
-          </Text>
-
-          {/* 현재 훈장 */}
-          <View style={styles.badgeRow}>
-            {medal ? (
-              <View style={[styles.badgePill, { backgroundColor: medal.color }]}>
-                <Text style={styles.badgePillEmoji}>{medal.emoji}</Text>
-                <Text style={[styles.badgePillTitle, { color: medal.textColor }]}>
-                  {medal.title}
-                </Text>
-              </View>
-            ) : (
-              <View style={[styles.badgePill, { backgroundColor: colors.surfaceLight }]}>
-                <Text style={styles.badgePillEmoji}>✨</Text>
-                <Text style={[styles.badgePillTitle, { color: colors.textSecondary }]}>
-                  첫 건배를 기다리는 중
-                </Text>
-              </View>
-            )}
-          </View>
-          {medal && <Text style={styles.badgeDesc}>{medal.desc}</Text>}
-
-          {/* 다음 훈장 진행률 */}
-          {nextMedal && (
+          {/* 다음 레벨 진행률 */}
+          {nextLvl && (
             <View style={styles.milestoneNextBox}>
               <View style={styles.milestoneProgressRow}>
                 <Text style={styles.milestoneNextLabel}>
-                  다음: {nextMedal.emoji} {nextMedal.title}
+                  Lv {nextLvl.rank} · {nextLvl.emoji} {nextLvl.title}
                 </Text>
                 <Text style={styles.milestoneNextPct}>
-                  {Math.round(medalProgress.progressPercent)}%
+                  {Math.round(levelProgress.progressPercent)}%
                 </Text>
               </View>
               <View style={styles.milestoneProgressBg}>
                 <View
                   style={[
                     styles.milestoneProgressFill,
-                    { width: `${Math.max(medalProgress.progressPercent, 2)}%` },
+                    { width: `${Math.max(levelProgress.progressPercent, 2)}%` },
                   ]}
                 />
               </View>
               <Text style={styles.milestoneNextSub}>
-                {nextMedal.sessions.toLocaleString()}회 달성 시 · 앞으로 {Math.max(nextMedal.sessions - totalSessions, 0)}회
+                다음 레벨까지 {Math.max(nextLvl.score - judoScore, 0).toLocaleString()}점
               </Text>
             </View>
           )}
 
-          {/* 훈장 로드맵 (접기/펼치기) */}
+          {/* 99단계 로드맵 (접기/펼치기) */}
           <TouchableOpacity
             style={styles.roadmapToggle}
-            onPress={() => setMedalRoadmapOpen((v) => !v)}
+            onPress={() => setLevelRoadmapOpen((v) => !v)}
             activeOpacity={0.7}
           >
-            <Text style={styles.roadmapToggleText}>
-              전체 20단계 훈장 {medalRoadmapOpen ? '접기 ▲' : '보기 ▼'}
-            </Text>
+            <View style={styles.roadmapToggleRow}>
+              <Text style={styles.roadmapToggleText}>
+                Lv 1 ~ 99 전체 로드맵 {levelRoadmapOpen ? '접기' : '보기'}
+              </Text>
+              <Icon
+                set="fa5"
+                name={levelRoadmapOpen ? 'caret-up' : 'caret-down'}
+                size={iconSize.xs}
+                color={colors.textSecondary}
+              />
+            </View>
           </TouchableOpacity>
-          {medalRoadmapOpen && (
-          <View style={styles.badgeRoadmap}>
-            {MEDALS.map((m) => {
-              const achieved = totalSessions >= m.sessions;
-              return (
-                <View key={m.rank} style={styles.roadmapItem}>
-                  <View
-                    style={[
-                      styles.roadmapDot,
-                      achieved
-                        ? { backgroundColor: m.color }
-                        : { backgroundColor: colors.surfaceLight },
-                    ]}
+          {levelRoadmapOpen && (
+            <View style={styles.badgeRoadmap}>
+              {LEVELS.map((l) => {
+                const achieved = judoScore >= l.score;
+                const key = `level-${l.rank}`;
+                return (
+                  <TouchableOpacity
+                    key={l.rank}
+                    ref={(r) => {
+                      if (r) anchorRefs.current.set(key, r as unknown as View);
+                      else anchorRefs.current.delete(key);
+                    }}
+                    style={styles.roadmapItem}
+                    activeOpacity={0.7}
+                    onPress={() =>
+                      openBubble(key, {
+                        emoji: l.emoji,
+                        title: `Lv ${l.rank} · ${l.title}`,
+                        desc: l.desc,
+                        meta: `주도 점수 ${l.score.toLocaleString()}점${achieved ? ' · 달성' : ''}`,
+                        achieved,
+                      })
+                    }
                   >
-                    <Text style={styles.roadmapEmoji}>{m.emoji}</Text>
-                  </View>
-                  <Text
-                    style={[
-                      styles.roadmapLabel,
-                      achieved && { color: colors.textPrimary, fontWeight: '600' },
-                    ]}
-                  >
-                    {m.title}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
+                    <View
+                      style={[
+                        styles.roadmapDot,
+                        achieved
+                          ? { backgroundColor: l.color }
+                          : { backgroundColor: colors.surfaceLight },
+                      ]}
+                    >
+                      <Text style={styles.roadmapEmoji}>{l.emoji}</Text>
+                    </View>
+                    <Text
+                      style={[
+                        styles.roadmapLabel,
+                        achieved && { color: colors.textPrimary, fontWeight: '700' },
+                      ]}
+                    >
+                      Lv.{l.rank.toString().padStart(2, '0')}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.roadmapTitle,
+                        achieved && { color: colors.textPrimary },
+                      ]}
+                      numberOfLines={2}
+                      ellipsizeMode="tail"
+                      lineBreakStrategyIOS="hangul-word"
+                    >
+                      {splitTitleTwoLines(l.title)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           )}
+
+          {/* 주도 점수 한 줄 */}
+          <Text style={styles.judoScoreLine}>
+            주도 점수 <Text style={styles.judoScoreValue}>{judoScore.toLocaleString()}</Text>
+            <Text style={styles.judoScoreHint}>  ·  ml÷100 + 술자리×100 + 연속 + 다양성×50</Text>
+          </Text>
         </View>
 
         {/* 🎯 주종별 여정 */}
@@ -725,9 +721,13 @@ export default function StatsScreen() {
             <Text style={styles.achCountText}>
               {achievements.unlockedCount} / {achievements.totalCount}
             </Text>
-            <Text style={styles.collectionChevron}>
-              {achievementsOpen ? '▲' : '▼'}
-            </Text>
+            <Icon
+              set="fa5"
+              name={achievementsOpen ? 'caret-up' : 'caret-down'}
+              size={iconSize.sm}
+              color={colors.textSecondary}
+              style={styles.collectionChevron}
+            />
           </TouchableOpacity>
           {/* 진행률 바 (항상 보임) */}
           <View style={styles.achOverallBg}>
@@ -791,9 +791,27 @@ export default function StatsScreen() {
           {/* 업적 리스트 */}
           {visibleAchievements.map((a) => {
             const pct = a.target > 0 ? (a.progress / a.target) * 100 : 0;
+            const key = `ach-${a.id}`;
             return (
-              <View
+              <TouchableOpacity
                 key={a.id}
+                ref={(r) => {
+                  if (r) anchorRefs.current.set(key, r as unknown as View);
+                  else anchorRefs.current.delete(key);
+                }}
+                activeOpacity={0.7}
+                onPress={() =>
+                  openBubble(key, {
+                    emoji: a.emoji,
+                    title: a.title,
+                    desc: a.desc,
+                    meta: a.unlocked
+                      ? '✓ 해금 완료'
+                      : `진행 ${a.progress}${a.unit ?? ''} / ${a.target}${a.unit ?? ''}`,
+                    achieved: a.unlocked,
+                    locked: !a.unlocked && a.title === '???',
+                  })
+                }
                 style={[
                   styles.achItem,
                   a.unlocked && styles.achItemUnlocked,
@@ -839,7 +857,7 @@ export default function StatsScreen() {
                     </View>
                   )}
                 </View>
-              </View>
+              </TouchableOpacity>
             );
           })}
           </>
@@ -858,9 +876,13 @@ export default function StatsScreen() {
               <Text style={styles.collectionCount}>
                 {collection.totalUnique}종
               </Text>
-              <Text style={styles.collectionChevron}>
-                {collectionExpanded ? '⌃' : '⌄'}
-              </Text>
+              <Icon
+                set="fa5"
+                name={collectionExpanded ? 'caret-up' : 'caret-down'}
+                size={iconSize.sm}
+                color={colors.textSecondary}
+                style={styles.collectionChevron}
+              />
             </TouchableOpacity>
 
             {/* 주종별 집계 */}
@@ -918,7 +940,7 @@ export default function StatsScreen() {
           <Text style={styles.chartTitle}>주종별 비율</Text>
           {categoryBreakdown.length === 0 ? (
             <View style={styles.chartArea}>
-              <Text style={styles.emptyIcon}>🥧</Text>
+              <Icon set="mci" name="chart-donut" size={iconSize.xl} color={colors.textTertiary} />
               <Text style={styles.emptyText}>
                 기록을 추가하면 주종 비율을 볼 수 있어요
               </Text>
@@ -962,6 +984,8 @@ export default function StatsScreen() {
           )}
         </View>
       </ScrollView>
+      {/* 뱃지/훈장/업적 탭 시 상세 말풍선 */}
+      <InfoBubble data={bubble?.data ?? null} onClose={closeBubble} />
     </SafeAreaView>
   );
 }
@@ -1045,7 +1069,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xl,
   },
   emptyIcon: {
-    fontSize: 48,
+    fontSize: iconSize.xxl,
     marginBottom: spacing.md,
   },
   emptyText: {
@@ -1137,15 +1161,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: borderRadius.full,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    gap: spacing.xs,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    gap: 5,
   },
   badgePillEmoji: {
-    fontSize: 22,
+    fontSize: iconSize.xs,
   },
   badgePillTitle: {
-    fontSize: fontSize.md,
+    fontSize: fontSize.sm,
     fontWeight: '700',
   },
   milestoneTotalLabel: {
@@ -1154,7 +1178,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   milestoneTotal: {
-    fontSize: 28,
+    fontSize: fontSize.xxl,
     fontWeight: '800',
     color: colors.primary,
     textAlign: 'right',
@@ -1169,7 +1193,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   milestoneEmoji: {
-    fontSize: 34,
+    fontSize: iconSize.lg,
   },
   milestoneMsg: {
     fontSize: fontSize.sm,
@@ -1239,7 +1263,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   badgePillSmEmoji: {
-    fontSize: 14,
+    fontSize: iconSize.xs,
   },
   badgePillSmTitle: {
     fontSize: fontSize.xs,
@@ -1287,30 +1311,40 @@ const styles = StyleSheet.create({
   badgeRoadmap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm,
-    paddingTop: spacing.sm,
+    columnGap: spacing.sm,
+    rowGap: spacing.lg,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
   roadmapItem: {
     alignItems: 'center',
-    width: '17%',
+    width: '31%', // 3칸 × 31% + gap 8×2 ≈ 100%
     gap: 4,
   },
   roadmapDot: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
   roadmapEmoji: {
-    fontSize: 20,
+    fontSize: iconSize.md,
   },
   roadmapLabel: {
-    fontSize: 9,
+    fontSize: fontSize.xs,
     color: colors.textTertiary,
     textAlign: 'center',
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  },
+  roadmapTitle: {
+    fontSize: fontSize.xs,
+    lineHeight: 15,
+    color: colors.textTertiary,
+    textAlign: 'center',
+    width: '100%',
   },
 
   // ── 주종별 여정 ──
@@ -1350,7 +1384,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   catAchievedEmoji: {
-    fontSize: 24,
+    fontSize: iconSize.md,
   },
   catAchievedMsg: {
     fontSize: fontSize.sm,
@@ -1414,7 +1448,7 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
   },
   insightIcon: {
-    fontSize: 28,
+    fontSize: iconSize.md,
   },
   insightHeadline: {
     fontSize: fontSize.sm,
@@ -1488,7 +1522,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceLight,
   },
   achEmoji: {
-    fontSize: 28,
+    fontSize: iconSize.lg,
   },
   achEmojiLocked: {
     opacity: 0.35,
@@ -1550,8 +1584,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   collectionChevron: {
-    fontSize: 18,
-    color: colors.textSecondary,
+    // size/color는 Icon prop으로 직접 지정
+  },
+  roadmapToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
   },
   collectionChips: {
     flexDirection: 'row',
