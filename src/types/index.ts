@@ -97,7 +97,8 @@ export interface DrinkLog {
   quantity_ml: number | null;
   price_paid: number | null;
   input_method: InputMethod;
-  photo_url: string | null;
+  photo_url: string | null;        // (legacy) 단일 사진 — backward compat용
+  photo_urls: string[] | null;     // 사진 여러 장
   note: string | null;
   location: string | null;
   companions: string | null;
