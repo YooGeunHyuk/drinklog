@@ -315,7 +315,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'streak-3',
-    emoji: '🔥',
+    emoji: '⚡',
     title: '3일 연속 의식',
     desc: '3일 연속 음주 기록.',
     category: 'streak',
@@ -445,7 +445,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'first-makgeolli',
-    emoji: '🍚',
+    emoji: '🍙',
     title: '첫 막걸리',
     desc: '전통의 맛, 입문.',
     category: 'mastery',
@@ -469,7 +469,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'master-soju-100',
-    emoji: '🍶',
+    emoji: '💯',
     title: '소주 100병',
     desc: '소주를 100병 마셨어요.',
     category: 'mastery',
@@ -477,7 +477,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'master-beer-50L',
-    emoji: '🍺',
+    emoji: '🍻',
     title: '맥주 50리터',
     desc: '맥주 누적 50L.',
     category: 'mastery',
@@ -486,7 +486,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'master-makgeolli-30',
-    emoji: '🍚',
+    emoji: '🌾',
     title: '막걸리 30병',
     desc: '막걸리 누적 30병.',
     category: 'mastery',
@@ -494,7 +494,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'master-wine-20',
-    emoji: '🍷',
+    emoji: '🍇',
     title: '와인 20병',
     desc: '와인 누적 20병.',
     category: 'mastery',
@@ -502,7 +502,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'master-whiskey-10',
-    emoji: '🥃',
+    emoji: '🪵',
     title: '위스키 10병',
     desc: '위스키 누적 10병. 홈바 자격.',
     category: 'mastery',
@@ -511,7 +511,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   // ── 키워드 기반 세분화 ──
   {
     id: 'first-sake',
-    emoji: '🍶',
+    emoji: '🎌',
     title: '첫 사케(清酒)',
     desc: '일본 청주의 세계로.',
     category: 'mastery',
@@ -520,7 +520,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'first-shochu',
-    emoji: '🍶',
+    emoji: '🗾',
     title: '첫 소츄',
     desc: '일본식 증류주, 소츄.',
     category: 'mastery',
@@ -529,7 +529,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'first-cheongju',
-    emoji: '🍾',
+    emoji: '⛩️',
     title: '첫 청주·정종',
     desc: '맑은 한 모금.',
     category: 'mastery',
@@ -592,7 +592,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'first-craftbeer',
-    emoji: '🍻',
+    emoji: '🥨',
     title: '첫 수제맥주',
     desc: '양조장의 자존심.',
     category: 'mastery',
@@ -661,7 +661,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'weather-sunny-beer',
-    emoji: '☀️',
+    emoji: '🌤',
     title: '맑은 날엔 맥주',
     desc: '맑은 날 맥주 5회.',
     category: 'weather',
@@ -681,7 +681,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   // ── 👥 소셜 (social) ──
   {
     id: 'social-alone-first',
-    emoji: '🧘',
+    emoji: '🪑',
     title: '첫 혼술',
     desc: '혼자만의 한 잔, 나쁘지 않죠.',
     category: 'social',
@@ -689,7 +689,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'social-alone-10',
-    emoji: '🧘',
+    emoji: '🌃',
     title: '혼술 애호가',
     desc: '혼술 10회 기록.',
     category: 'social',
@@ -705,7 +705,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'social-party-10',
-    emoji: '🎉',
+    emoji: '🍽️',
     title: '회식 단골',
     desc: '모임·회식 10회 기록.',
     category: 'social',
@@ -779,7 +779,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'loc-bar',
-    emoji: '🍸',
+    emoji: '🪩',
     title: '바(BAR) 단골',
     desc: '바 기록 5회.',
     category: 'location',
@@ -822,7 +822,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'loc-jeju',
-    emoji: '🌊',
+    emoji: '🍊',
     title: '제주에서 한 잔',
     desc: '제주도에서 기록.',
     category: 'location',
@@ -831,7 +831,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'loc-busan',
-    emoji: '🌊',
+    emoji: '🌉',
     title: '부산의 밤',
     desc: '부산에서 기록.',
     category: 'location',
@@ -859,7 +859,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'day-nye',
-    emoji: '🥂',
+    emoji: '🔔',
     title: '제야의 종소리',
     desc: '12월 31일의 기록.',
     category: 'special_day',
@@ -891,7 +891,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'day-children',
-    emoji: '🎈',
+    emoji: '🎠',
     title: '어린이날의 어른',
     desc: '5월 5일의 기록. 오늘은 어른이 주인공이 아니잖아요…',
     category: 'special_day',
@@ -907,7 +907,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'day-liberation',
-    emoji: '🇰🇷',
+    emoji: '🎇',
     title: '광복절의 건배',
     desc: '8월 15일의 기록.',
     category: 'special_day',
@@ -1056,7 +1056,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'egg-xmas-snow',
-    emoji: '❄️',
+    emoji: '☃️',
     title: '눈 오는 크리스마스',
     desc: '화이트 크리스마스에 건배라니, 영화 한 편이네요.',
     category: 'secret',
@@ -1114,9 +1114,9 @@ export const ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'egg-wolha',
-    emoji: '🌙',
-    title: '월하독작(月下獨酌)',
-    desc: '이백도 이랬겠죠. 달이 친구였다는데.',
+    emoji: '🪔',
+    title: '달빛 한 잔',
+    desc: '늦은 밤 혼자 잔을 든 그 순간.',
     category: 'secret',
     hidden: true,
     check: (logs) =>
