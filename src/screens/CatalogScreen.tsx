@@ -4,15 +4,16 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   TouchableOpacity,
   RefreshControl,
   TextInput,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
+import { colors, spacing, fontSize, borderRadius, iconSize } from '../constants/theme';
 import { supabase } from '../lib/supabase';
 import { DrinkLog, DrinkCatalog, DrinkCategory, CATEGORY_LABELS } from '../types';
+import Icon from '../components/Icon';
 
 type FilterCategory = 'all' | DrinkCategory;
 
@@ -112,15 +113,7 @@ export default function CatalogScreen() {
     return list;
   }, [myCatalog, filter, searchText]);
 
-  // 뱃지 계산 (고유 주류 수 기준)
   const uniqueCount = myCatalog.length;
-  const badges = useMemo(() => {
-    return [
-      { threshold: 1, label: '🏅 1번째 술', achieved: uniqueCount >= 1 },
-      { threshold: 10, label: '🎯 10번째 술', achieved: uniqueCount >= 10 },
-      { threshold: 50, label: '👑 50번째 술', achieved: uniqueCount >= 50 },
-    ];
-  }, [uniqueCount]);
 
   const formatDate = (iso: string | null) => {
     if (!iso) return '';
@@ -129,7 +122,7 @@ export default function CatalogScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
@@ -145,31 +138,9 @@ export default function CatalogScreen() {
           내가 마셔본 술 {uniqueCount}종
         </Text>
 
-        {/* 뱃지 */}
-        <View style={styles.badgeRow}>
-          {badges.map((b, i) => (
-            <View
-              key={i}
-              style={[
-                styles.badge,
-                b.achieved && styles.badgeAchieved,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.badgeText,
-                  b.achieved && styles.badgeTextAchieved,
-                ]}
-              >
-                {b.label}
-              </Text>
-            </View>
-          ))}
-        </View>
-
         {myCatalog.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>🗃️</Text>
+            <Icon name="Library" size={iconSize.xxl} color={colors.textTertiary} />
             <Text style={styles.emptyText}>아직 카탈로그가 비어있어요</Text>
             <Text style={styles.emptySubtext}>
               기록을 추가하면 자동으로 카탈로그가 채워집니다
@@ -293,34 +264,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     marginBottom: spacing.lg,
   },
-  badgeRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    flexWrap: 'wrap',
-    marginBottom: spacing.lg,
-  },
-  badge: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.full,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    opacity: 0.5,
-  },
-  badgeAchieved: {
-    opacity: 1,
-    borderColor: colors.primary,
-    backgroundColor: colors.surfaceLight,
-  },
-  badgeText: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-  },
-  badgeTextAchieved: {
-    color: colors.primary,
-    fontWeight: '600',
-  },
   emptyState: {
     alignItems: 'center',
     paddingVertical: spacing.xxl,
@@ -333,7 +276,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xl,
   },
   emptyIcon: {
-    fontSize: 48,
+    fontSize: iconSize.xxl,
     marginBottom: spacing.md,
   },
   emptyText: {
