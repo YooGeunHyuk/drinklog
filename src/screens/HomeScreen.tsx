@@ -439,11 +439,7 @@ export default function HomeScreen({ navigation }: any) {
                       {log.price_paid ? ` · ₩${log.price_paid.toLocaleString()}` : ''}
                       {log.temperature != null ? ` · ${log.temperature.toFixed(0)}°C` : ''}
                     </Text>
-                    {log.companions && (
-                      <Text style={styles.logSub} numberOfLines={1}>
-                        👥 {log.companions}
-                      </Text>
-                    )}
+                    {/* 동행자(companions)는 리스트에선 숨기고 상세 화면에서만 노출 */}
                   </View>
 
                   {/* 우측: 날씨 + 장소 (날짜는 카드 위로 이동) */}
