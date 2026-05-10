@@ -28,6 +28,7 @@ import Icon from '../components/Icon';
 import { getCategoryIcon } from '../constants/categoryIcons';
 import { ErrorBanner } from '../components/ErrorBanner';
 import EmptyState from '../components/EmptyState';
+import SummaryStatRow from '../components/SummaryStatRow';
 
 export default function HomeScreen({ navigation }: any) {
   const [nickname, setNickname] = useState<string>('');
@@ -302,53 +303,39 @@ export default function HomeScreen({ navigation }: any) {
             </View>
           </View>
 
-          {/* 이번 달 행 */}
-          <Text style={styles.summarySubTitle}>이번 달 (현재까지)</Text>
-          <View style={styles.summaryRow}>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryValue} numberOfLines={1}>
-                {monthStats.bottles.toFixed(1).replace(/\.0$/, '')}
-              </Text>
-              <Text style={styles.summaryLabel} numberOfLines={1}>총 병 수</Text>
-            </View>
-            <View style={styles.summaryDivider} />
-            <View style={styles.summaryItem}>
-              <Text style={[styles.summaryValue, styles.summaryValueCost]} numberOfLines={1}>
-                {monthStats.cost.toLocaleString()}
-              </Text>
-              <Text style={styles.summaryLabel} numberOfLines={1}>총 비용 (원)</Text>
-            </View>
-            <View style={styles.summaryDivider} />
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryValue} numberOfLines={1}>{monthStats.days}일</Text>
-              <Text style={styles.summaryLabel} numberOfLines={1}>음주 일수</Text>
-            </View>
-          </View>
+          <SummaryStatRow
+            subTitle="이번 달 (현재까지)"
+            items={[
+              {
+                value: monthStats.bottles.toFixed(1).replace(/\.0$/, ''),
+                label: '비운 병 수',
+              },
+              {
+                value: monthStats.cost.toLocaleString(),
+                label: '쓴 금액 (원)',
+                isCost: true,
+              },
+              { value: `${monthStats.days}일`, label: '마신 일수' },
+            ]}
+          />
 
           <View style={styles.summaryHDivider} />
 
-          {/* 이번 주 행 */}
-          <Text style={styles.summarySubTitle}>이번 주</Text>
-          <View style={styles.summaryRow}>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryValue} numberOfLines={1}>
-                {weekStats.bottles.toFixed(1).replace(/\.0$/, '')}
-              </Text>
-              <Text style={styles.summaryLabel} numberOfLines={1}>총 병 수</Text>
-            </View>
-            <View style={styles.summaryDivider} />
-            <View style={styles.summaryItem}>
-              <Text style={[styles.summaryValue, styles.summaryValueCost]} numberOfLines={1}>
-                {weekStats.cost.toLocaleString()}
-              </Text>
-              <Text style={styles.summaryLabel} numberOfLines={1}>총 비용 (원)</Text>
-            </View>
-            <View style={styles.summaryDivider} />
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryValue} numberOfLines={1}>{weekStats.days}일</Text>
-              <Text style={styles.summaryLabel} numberOfLines={1}>음주 일수</Text>
-            </View>
-          </View>
+          <SummaryStatRow
+            subTitle="이번 주"
+            items={[
+              {
+                value: weekStats.bottles.toFixed(1).replace(/\.0$/, ''),
+                label: '비운 병 수',
+              },
+              {
+                value: weekStats.cost.toLocaleString(),
+                label: '쓴 금액 (원)',
+                isCost: true,
+              },
+              { value: `${weekStats.days}일`, label: '마신 일수' },
+            ]}
+          />
         </View>
 
         {/* 🎯 메인 주종 마일스톤 배너 */}
@@ -544,13 +531,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.textSecondary,
   },
-  summarySubTitle: {
-    fontSize: fontSize.xs,
-    color: colors.textTertiary,
-    fontWeight: '600',
-    marginBottom: spacing.sm,
-    letterSpacing: 0.3,
-  },
   streakChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -567,32 +547,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     color: colors.textSecondary,
     fontWeight: '600',
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  summaryItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  summaryValue: {
-    fontSize: fontSize.xl,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  summaryValueCost: {
-    paddingHorizontal: spacing.sm,
-  },
-  summaryLabel: {
-    fontSize: fontSize.xs,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
-  },
-  summaryDivider: {
-    width: 1,
-    height: 36,
-    backgroundColor: colors.border,
   },
   summaryHDivider: {
     height: 1,

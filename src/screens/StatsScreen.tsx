@@ -391,17 +391,17 @@ export default function StatsScreen() {
             <Text style={styles.statValue}>
               {stats.bottles.toFixed(1).replace(/\.0$/, '')}
             </Text>
-            <Text style={styles.statLabel}>총 병 수</Text>
+            <Text style={styles.statLabel}>비운 병 수</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>
               ₩{stats.cost.toLocaleString()}
             </Text>
-            <Text style={styles.statLabel}>총 비용</Text>
+            <Text style={styles.statLabel}>쓴 금액</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>{stats.days}일</Text>
-            <Text style={styles.statLabel}>음주 일수</Text>
+            <Text style={styles.statLabel}>마신 일수</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>
