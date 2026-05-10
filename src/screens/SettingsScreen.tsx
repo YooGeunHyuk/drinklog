@@ -23,6 +23,7 @@ export default function SettingsScreen({ navigation }: Props) {
   const [phone, setPhone] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     loadProfile();
@@ -101,6 +102,38 @@ export default function SettingsScreen({ navigation }: Props) {
     ]);
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      '회원 탈퇴',
+      '모든 기록(드링크 로그·사진·프로필)이 영구 삭제됩니다. 복구할 수 없습니다. 정말 탈퇴하시겠어요?',
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '탈퇴',
+          style: 'destructive',
+          onPress: async () => {
+            setIsDeleting(true);
+            try {
+              const { error } = await supabase.functions.invoke(
+                'delete-account',
+                { method: 'POST' },
+              );
+              if (error) throw error;
+              // Edge Function이 auth.users를 지웠으므로 세션도 무효화됨
+              await supabase.auth.signOut();
+            } catch (err: any) {
+              Alert.alert(
+                '탈퇴 실패',
+                err.message ?? '탈퇴 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.',
+              );
+              setIsDeleting(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
@@ -157,13 +190,26 @@ export default function SettingsScreen({ navigation }: Props) {
             <TouchableOpacity
               style={styles.dangerRow}
               onPress={handleLogout}
-              disabled={isLoggingOut}
+              disabled={isLoggingOut || isDeleting}
             >
               <Text style={styles.dangerText}>
                 {isLoggingOut ? '로그아웃 중...' : '로그아웃'}
               </Text>
             </TouchableOpacity>
+            <View style={styles.rowDivider} />
+            <TouchableOpacity
+              style={styles.dangerRow}
+              onPress={handleDeleteAccount}
+              disabled={isLoggingOut || isDeleting}
+            >
+              <Text style={styles.deleteAccountText}>
+                {isDeleting ? '탈퇴 처리 중...' : '회원 탈퇴'}
+              </Text>
+            </TouchableOpacity>
           </View>
+          <Text style={styles.deleteAccountHint}>
+            모든 기록·사진·프로필이 영구 삭제됩니다. 복구할 수 없습니다.
+          </Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -264,5 +310,22 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     color: colors.tone.terracotta,
     fontWeight: '500',
+  },
+  rowDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.md,
+  },
+  deleteAccountText: {
+    fontSize: fontSize.md,
+    color: colors.tone.terracotta,
+    fontWeight: '600',
+  },
+  deleteAccountHint: {
+    fontSize: fontSize.xs,
+    color: colors.textTertiary,
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    lineHeight: fontSize.xs * 1.4,
   },
 });
