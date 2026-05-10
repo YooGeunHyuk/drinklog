@@ -27,6 +27,7 @@ import { topCategory } from '../lib/patterns';
 import Icon from '../components/Icon';
 import { getCategoryIcon } from '../constants/categoryIcons';
 import { ErrorBanner } from '../components/ErrorBanner';
+import EmptyState from '../components/EmptyState';
 
 export default function HomeScreen({ navigation }: any) {
   const [nickname, setNickname] = useState<string>('');
@@ -305,22 +306,22 @@ export default function HomeScreen({ navigation }: any) {
           <Text style={styles.summarySubTitle}>이번 달 (현재까지)</Text>
           <View style={styles.summaryRow}>
             <View style={styles.summaryItem}>
-              <Text style={styles.summaryValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
+              <Text style={styles.summaryValue} numberOfLines={1}>
                 {monthStats.bottles.toFixed(1).replace(/\.0$/, '')}
               </Text>
-              <Text style={styles.summaryLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>총 병 수</Text>
+              <Text style={styles.summaryLabel} numberOfLines={1}>총 병 수</Text>
             </View>
             <View style={styles.summaryDivider} />
             <View style={styles.summaryItem}>
-              <Text style={[styles.summaryValue, styles.summaryValueCost]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
+              <Text style={[styles.summaryValue, styles.summaryValueCost]} numberOfLines={1}>
                 {monthStats.cost.toLocaleString()}
               </Text>
-              <Text style={styles.summaryLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>총 비용 (원)</Text>
+              <Text style={styles.summaryLabel} numberOfLines={1}>총 비용 (원)</Text>
             </View>
             <View style={styles.summaryDivider} />
             <View style={styles.summaryItem}>
-              <Text style={styles.summaryValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>{monthStats.days}일</Text>
-              <Text style={styles.summaryLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>음주 일수</Text>
+              <Text style={styles.summaryValue} numberOfLines={1}>{monthStats.days}일</Text>
+              <Text style={styles.summaryLabel} numberOfLines={1}>음주 일수</Text>
             </View>
           </View>
 
@@ -330,22 +331,22 @@ export default function HomeScreen({ navigation }: any) {
           <Text style={styles.summarySubTitle}>이번 주</Text>
           <View style={styles.summaryRow}>
             <View style={styles.summaryItem}>
-              <Text style={styles.summaryValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
+              <Text style={styles.summaryValue} numberOfLines={1}>
                 {weekStats.bottles.toFixed(1).replace(/\.0$/, '')}
               </Text>
-              <Text style={styles.summaryLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>총 병 수</Text>
+              <Text style={styles.summaryLabel} numberOfLines={1}>총 병 수</Text>
             </View>
             <View style={styles.summaryDivider} />
             <View style={styles.summaryItem}>
-              <Text style={[styles.summaryValue, styles.summaryValueCost]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
+              <Text style={[styles.summaryValue, styles.summaryValueCost]} numberOfLines={1}>
                 {weekStats.cost.toLocaleString()}
               </Text>
-              <Text style={styles.summaryLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>총 비용 (원)</Text>
+              <Text style={styles.summaryLabel} numberOfLines={1}>총 비용 (원)</Text>
             </View>
             <View style={styles.summaryDivider} />
             <View style={styles.summaryItem}>
-              <Text style={styles.summaryValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>{weekStats.days}일</Text>
-              <Text style={styles.summaryLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>음주 일수</Text>
+              <Text style={styles.summaryValue} numberOfLines={1}>{weekStats.days}일</Text>
+              <Text style={styles.summaryLabel} numberOfLines={1}>음주 일수</Text>
             </View>
           </View>
         </View>
@@ -390,13 +391,18 @@ export default function HomeScreen({ navigation }: any) {
         <View style={styles.recentSection}>
           <Text style={styles.sectionTitle}>최근 기록</Text>
           {recentLogs.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Icon set="mci" name="bottle-tonic-outline" size={iconSize.xxl} color={colors.textTertiary} />
-              <Text style={styles.emptyText}>아직 기록이 없어요</Text>
-              <Text style={styles.emptySubtext}>
-                첫 번째 술을 기록해보세요!
-              </Text>
-            </View>
+            <EmptyState
+              icon={
+                <Icon
+                  set="mci"
+                  name="bottle-tonic-outline"
+                  size={iconSize.xxl}
+                  color={colors.textTertiary}
+                />
+              }
+              title="아직 기록이 없어요"
+              subtitle="첫 번째 술을 기록해보세요!"
+            />
           ) : (
             recentLogs.map((log) => (
               <View key={log.id} style={styles.logBlock}>
@@ -601,26 +607,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textPrimary,
     marginBottom: spacing.md,
-  },
-  emptyState: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    padding: spacing.xl,
-    alignItems: 'center',
-  },
-  emptyIcon: {
-    fontSize: iconSize.xxl,
-    marginBottom: spacing.md,
-  },
-  emptyText: {
-    fontSize: fontSize.md,
-    color: colors.textPrimary,
-    fontWeight: '600',
-  },
-  emptySubtext: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
   },
   logBlock: {
     marginBottom: spacing.sm,

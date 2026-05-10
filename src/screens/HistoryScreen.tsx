@@ -16,6 +16,7 @@ import { supabase } from '../lib/supabase';
 import { WEATHER_ICONS, WeatherCode } from '../lib/weather';
 import Icon from '../components/Icon';
 import { getCategoryIcon } from '../constants/categoryIcons';
+import EmptyState from '../components/EmptyState';
 
 type FilterCategory = 'all' | DrinkCategory;
 
@@ -166,7 +167,9 @@ export default function HistoryScreen({ navigation }: any) {
 
   const formatTime = (iso: string) => {
     const d = new Date(iso);
-    return `${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`;
+    const h = d.getHours().toString().padStart(2, '0');
+    const m = d.getMinutes().toString().padStart(2, '0');
+    return `${h}:${m}`;
   };
 
   const allSelected = filteredLogs.length > 0 && selectedIds.size === filteredLogs.length;
@@ -233,13 +236,19 @@ export default function HistoryScreen({ navigation }: any) {
 
         {/* 빈 상태 or 목록 */}
         {filteredLogs.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Icon name="ListChecks" size={iconSize.xxl} color={colors.textTertiary} />
-            <Text style={styles.emptyText}>
-              {filter === 'all' ? '아직 기록이 없어요' : '해당 주종 기록이 없어요'}
-            </Text>
-            <Text style={styles.emptySubtext}>술을 마신 후 기록을 추가해보세요</Text>
-          </View>
+          <EmptyState
+            icon={
+              <Icon
+                name="ListChecks"
+                size={iconSize.xxl}
+                color={colors.textTertiary}
+              />
+            }
+            title={
+              filter === 'all' ? '아직 기록이 없어요' : '해당 주종 기록이 없어요'
+            }
+            subtitle="술을 마신 후 기록을 추가해보세요"
+          />
         ) : (
           groupedLogs.map(([dateKey, dayLogs]) => {
             const dayBottles = dayLogs.reduce((sum, l) => sum + (l.bottles || 0), 0);
@@ -347,7 +356,8 @@ export default function HistoryScreen({ navigation }: any) {
         )}
 
         {/* 하단 여백 (삭제 버튼 가리지 않게) */}
-        {isEditMode && <View style={{ height: 80 }} />}
+        {/* deleteBar 높이만큼 하단 여백 (button + paddingBottom + border) */}
+        {isEditMode && <View style={{ height: spacing.xxl + spacing.xl }} />}
       </ScrollView>
 
       {/* 선택 삭제 버튼 (편집 모드 + 선택된 항목 있을 때) */}
@@ -449,24 +459,6 @@ const styles = StyleSheet.create({
   filterTextActive: {
     color: colors.textInverse,
     fontWeight: '600',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: spacing.xxl * 2,
-  },
-  emptyIcon: {
-    fontSize: iconSize.xxl,
-    marginBottom: spacing.md,
-  },
-  emptyText: {
-    fontSize: fontSize.md,
-    color: colors.textPrimary,
-    fontWeight: '600',
-  },
-  emptySubtext: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
   },
   dateGroup: {
     marginBottom: spacing.lg,

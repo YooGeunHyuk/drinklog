@@ -758,7 +758,15 @@ export default function StatsScreen() {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            style={{ marginTop: spacing.md, marginBottom: spacing.sm }}
+            style={{
+              marginTop: spacing.md,
+              marginBottom: spacing.sm,
+              marginHorizontal: -spacing.lg,
+            }}
+            contentContainerStyle={{
+              paddingHorizontal: spacing.lg,
+              gap: spacing.xs,
+            }}
           >
             <TouchableOpacity
               onPress={() => setAchievementFilter('all')}
@@ -1505,7 +1513,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
     borderRadius: borderRadius.full,
-    marginRight: spacing.xs,
   },
   achFilterChipActive: {
     backgroundColor: colors.primary,

@@ -15,6 +15,7 @@ import { supabase } from '../lib/supabase';
 import { DrinkLog, DrinkCatalog, DrinkCategory, CATEGORY_LABELS } from '../types';
 import Icon from '../components/Icon';
 import { ErrorBanner } from '../components/ErrorBanner';
+import EmptyState from '../components/EmptyState';
 
 type FilterCategory = 'all' | DrinkCategory;
 
@@ -143,18 +144,24 @@ export default function CatalogScreen() {
           onDismiss={() => setLoadError(null)}
         />
         <Text style={styles.title}>주류 카탈로그</Text>
-        <Text style={styles.subtitle}>
-          내가 마셔본 술 {uniqueCount}종
-        </Text>
+        {uniqueCount > 0 && (
+          <Text style={styles.subtitle}>
+            내가 마셔본 술 {uniqueCount}종
+          </Text>
+        )}
 
         {myCatalog.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Icon name="Library" size={iconSize.xxl} color={colors.textTertiary} />
-            <Text style={styles.emptyText}>아직 카탈로그가 비어있어요</Text>
-            <Text style={styles.emptySubtext}>
-              기록을 추가하면 자동으로 카탈로그가 채워집니다
-            </Text>
-          </View>
+          <EmptyState
+            icon={
+              <Icon
+                name="Library"
+                size={iconSize.xxl}
+                color={colors.textTertiary}
+              />
+            }
+            title="아직 카탈로그가 비어있어요"
+            subtitle="기록을 추가하면 자동으로 카탈로그가 채워집니다"
+          />
         ) : (
           <>
             {/* 검색 */}
@@ -196,9 +203,7 @@ export default function CatalogScreen() {
 
             {/* 카탈로그 목록 */}
             {filteredCatalog.length === 0 ? (
-              <View style={styles.emptySmall}>
-                <Text style={styles.emptyText}>검색 결과가 없어요</Text>
-              </View>
+              <EmptyState title="검색 결과가 없어요" variant="plain" />
             ) : (
               filteredCatalog.map((item) => (
                 <View key={item.id} style={styles.catalogCard}>
@@ -272,32 +277,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.xs,
     marginBottom: spacing.lg,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: spacing.xxl,
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    padding: spacing.xl,
-  },
-  emptySmall: {
-    alignItems: 'center',
-    paddingVertical: spacing.xl,
-  },
-  emptyIcon: {
-    fontSize: iconSize.xxl,
-    marginBottom: spacing.md,
-  },
-  emptyText: {
-    fontSize: fontSize.md,
-    color: colors.textPrimary,
-    fontWeight: '600',
-  },
-  emptySubtext: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
-    textAlign: 'center',
   },
   searchInput: {
     backgroundColor: colors.surface,
