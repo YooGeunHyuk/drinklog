@@ -10,9 +10,14 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from 'react-native';
 import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
 import { supabase } from '../lib/supabase';
+import {
+  TERMS_OF_SERVICE,
+  PRIVACY_POLICY,
+} from '../constants/termsContent';
 
 interface Props {
   navigation: any;
@@ -24,6 +29,7 @@ export default function SettingsScreen({ navigation }: Props) {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [openLegal, setOpenLegal] = useState<'terms' | 'privacy' | null>(null);
 
   useEffect(() => {
     loadProfile();
@@ -184,6 +190,26 @@ export default function SettingsScreen({ navigation }: Props) {
             </>
           ) : null}
 
+          {/* 정보 섹션 */}
+          <Text style={styles.sectionTitle}>정보</Text>
+          <View style={styles.card}>
+            <TouchableOpacity
+              style={styles.linkRow}
+              onPress={() => setOpenLegal('terms')}
+            >
+              <Text style={styles.linkText}>이용약관</Text>
+              <Text style={styles.linkChevron}>›</Text>
+            </TouchableOpacity>
+            <View style={styles.rowDivider} />
+            <TouchableOpacity
+              style={styles.linkRow}
+              onPress={() => setOpenLegal('privacy')}
+            >
+              <Text style={styles.linkText}>개인정보처리방침</Text>
+              <Text style={styles.linkChevron}>›</Text>
+            </TouchableOpacity>
+          </View>
+
           {/* 계정 섹션 */}
           <Text style={styles.sectionTitle}>계정</Text>
           <View style={styles.card}>
@@ -212,6 +238,29 @@ export default function SettingsScreen({ navigation }: Props) {
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={openLegal !== null}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setOpenLegal(null)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>
+              {openLegal === 'terms' ? '이용약관' : '개인정보처리방침'}
+            </Text>
+            <TouchableOpacity onPress={() => setOpenLegal(null)}>
+              <Text style={styles.modalClose}>닫기</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={styles.modalBody}>
+            <Text style={styles.modalText}>
+              {openLegal === 'terms' ? TERMS_OF_SERVICE : PRIVACY_POLICY}
+            </Text>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -327,5 +376,51 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     paddingHorizontal: spacing.xs,
     lineHeight: fontSize.xs * 1.4,
+  },
+  linkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+  },
+  linkText: {
+    fontSize: fontSize.md,
+    color: colors.textPrimary,
+  },
+  linkChevron: {
+    fontSize: fontSize.md,
+    color: colors.textTertiary,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  modalTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  modalClose: {
+    fontSize: fontSize.md,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  modalBody: {
+    padding: spacing.lg,
+  },
+  modalText: {
+    fontSize: fontSize.md,
+    color: colors.textSecondary,
+    lineHeight: fontSize.md * 1.6,
   },
 });
