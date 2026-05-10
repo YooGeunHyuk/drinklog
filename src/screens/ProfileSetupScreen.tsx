@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -33,15 +33,55 @@ export default function ProfileSetupScreen({ onComplete }: Props) {
     { key: 'none', label: '선택 안 함' },
   ];
 
-  const handleComplete = async () => {
-    // 만 19세 미만 체크
-    if (birthYear) {
-      const year = parseInt(birthYear, 10);
-      const currentYear = new Date().getFullYear();
-      if (currentYear - year < 19) {
-        Alert.alert('가입 불가', '만 19세 미만은 이용할 수 없습니다.');
-        return;
+  // 기존 user가 birth_year 누락 등으로 재진입한 경우, 입력해둔 값을 잃지 않도록 prefill
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from('users')
+        .select('nickname, gender, birth_year, marketing_agreed')
+        .eq('id', user.id)
+        .single();
+      if (cancelled || !data) return;
+      if (data.nickname) setNickname(data.nickname);
+      if (data.gender) setGender(data.gender as Gender);
+      if (data.birth_year) setBirthYear(String(data.birth_year));
+      if (typeof data.marketing_agreed === 'boolean') {
+        setMarketingAgreed(data.marketing_agreed);
       }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleComplete = async () => {
+    // 닉네임 필수 (앱 식별자 + checkProfile 정합)
+    const trimmedNickname = nickname.trim();
+    if (!trimmedNickname) {
+      Alert.alert('닉네임 입력 필요', '닉네임을 입력해 주세요.');
+      return;
+    }
+
+    // 출생연도 필수 + 만 19세 미만 차단 (주류 관련 앱 법적 요건)
+    const currentYear = new Date().getFullYear();
+    const trimmedYear = birthYear.trim();
+    if (!trimmedYear) {
+      Alert.alert('출생연도 입력 필요', '출생연도를 입력해 주세요.');
+      return;
+    }
+    const year = parseInt(trimmedYear, 10);
+    if (Number.isNaN(year) || year < 1900 || year > currentYear) {
+      Alert.alert('출생연도 확인', '올바른 출생연도를 입력해 주세요.');
+      return;
+    }
+    if (currentYear - year < 19) {
+      Alert.alert('가입 불가', '만 19세 미만은 이용할 수 없습니다.');
+      return;
     }
 
     setIsLoading(true);
@@ -55,9 +95,9 @@ export default function ProfileSetupScreen({ onComplete }: Props) {
       const { error } = await supabase
         .from('users')
         .update({
-          nickname: nickname || null,
+          nickname: trimmedNickname,
           gender: gender,
-          birth_year: birthYear ? parseInt(birthYear, 10) : null,
+          birth_year: year,
           marketing_agreed: marketingAgreed,
         })
         .eq('id', user.id);
@@ -79,7 +119,7 @@ export default function ProfileSetupScreen({ onComplete }: Props) {
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <Text style={styles.title}>프로필 설정</Text>
           <Text style={styles.subtitle}>
-            간단한 정보를 입력해주세요 (모두 선택사항)
+            닉네임과 출생연도는 필수입니다. 나머지는 선택사항이에요.
           </Text>
 
           {/* 프로필 사진 */}
@@ -90,8 +130,10 @@ export default function ProfileSetupScreen({ onComplete }: Props) {
             <Text style={styles.avatarLabel}>사진 추가</Text>
           </TouchableOpacity>
 
-          {/* 닉네임 */}
-          <Text style={styles.label}>닉네임</Text>
+          {/* 닉네임 (필수) */}
+          <Text style={styles.label}>
+            닉네임 <Text style={styles.required}>*</Text>
+          </Text>
           <TextInput
             style={styles.input}
             placeholder="닉네임을 입력하세요"
@@ -125,8 +167,10 @@ export default function ProfileSetupScreen({ onComplete }: Props) {
             ))}
           </View>
 
-          {/* 출생연도 */}
-          <Text style={styles.label}>출생연도</Text>
+          {/* 출생연도 (필수 — 만 19세 이상만 이용 가능) */}
+          <Text style={styles.label}>
+            출생연도 <Text style={styles.required}>*</Text>
+          </Text>
           <TextInput
             style={styles.input}
             placeholder="예: 1995"
@@ -164,13 +208,6 @@ export default function ProfileSetupScreen({ onComplete }: Props) {
             activeOpacity={0.8}
           >
             <Text style={styles.completeButtonText}>시작하기</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.skipButton}
-            onPress={onComplete}
-          >
-            <Text style={styles.skipText}>건너뛰기</Text>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -226,6 +263,10 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: spacing.sm,
     marginTop: spacing.lg,
+  },
+  required: {
+    color: colors.primary,
+    fontWeight: '600',
   },
   input: {
     backgroundColor: colors.surface,
@@ -301,14 +342,5 @@ const styles = StyleSheet.create({
     fontSize: fontSize.lg,
     fontWeight: '600',
     color: colors.textInverse,
-  },
-  skipButton: {
-    alignItems: 'center',
-    marginTop: spacing.lg,
-    padding: spacing.sm,
-  },
-  skipText: {
-    fontSize: fontSize.md,
-    color: colors.textTertiary,
   },
 });

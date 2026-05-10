@@ -44,13 +44,13 @@ export default function App() {
   };
 
   const checkProfile = async (userId: string) => {
-    // 프로필이 완성되어 있는지 확인 (닉네임이 있으면 완료된 것으로 간주)
+    // 프로필 필수 항목: 닉네임 + 출생연도 (만 19세 검증 — 주류 앱 법적 요건)
     const { data } = await supabase
       .from('users')
-      .select('nickname')
+      .select('nickname, birth_year')
       .eq('id', userId)
       .single();
-    if (data && data.nickname) {
+    if (data?.nickname && data?.birth_year) {
       setAppState('main');
     } else {
       setAppState('profile_setup');
