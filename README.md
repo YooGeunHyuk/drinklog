@@ -30,7 +30,8 @@
 npm install
 
 # 2. 환경 변수
-cp .env.example .env  # 그리고 SUPABASE_URL, SUPABASE_ANON_KEY 등 채우기
+cp .env.example .env  # EXPO_PUBLIC_SUPABASE_URL, EXPO_PUBLIC_SUPABASE_ANON_KEY 채우기
+                       # Expo 빌드 시점에 EXPO_PUBLIC_* 변수가 인라인됨
 
 # 3. iOS 또는 Android에서 실행
 npm run ios      # iOS 시뮬레이터
