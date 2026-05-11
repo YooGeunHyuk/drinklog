@@ -585,8 +585,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   profileBtn: {
-    padding: 4,
-    marginBottom: 4,
+    padding: spacing.xs,
+    marginBottom: spacing.xs,
   },
   appName: {
     fontSize: fontSize.title,
@@ -597,7 +597,7 @@ const styles = StyleSheet.create({
   nicknameOf: {
     fontSize: fontSize.lg,
     fontWeight: '700',
-    marginBottom: 2,
+    marginBottom: spacing.xs,
   },
   badgeBlock: {
     alignItems: 'flex-end',
@@ -608,8 +608,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: borderRadius.full,
     paddingVertical: 1,
-    paddingHorizontal: 5,
-    gap: 2,
+    paddingHorizontal: spacing.xs,
+    gap: spacing.xs,
   },
   badgePillEmoji: {
     fontSize: 12,
@@ -653,10 +653,10 @@ const styles = StyleSheet.create({
   streakChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: spacing.xs,
     backgroundColor: colors.surfaceLight,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
   },
   streakChipFlame: {
@@ -717,7 +717,7 @@ const styles = StyleSheet.create({
   },
   logRight: {
     alignItems: 'flex-end',
-    gap: 2,
+    gap: spacing.xs,
     marginLeft: spacing.sm,
     maxWidth: 120,
   },
@@ -727,12 +727,12 @@ const styles = StyleSheet.create({
   logLocation: {
     fontSize: fontSize.xs,
     color: colors.textTertiary,
-    marginTop: 2,
+    marginTop: spacing.xs,
   },
   logMeta: {
     fontSize: fontSize.sm,
     color: colors.textSecondary,
-    marginTop: 2,
+    marginTop: spacing.xs,
   },
   logDate: {
     fontSize: fontSize.xs,
@@ -748,7 +748,7 @@ const styles = StyleSheet.create({
   logSub: {
     fontSize: fontSize.xs,
     color: colors.textTertiary,
-    marginTop: 2,
+    marginTop: spacing.xs,
   },
 
   // ── 메인 주종 배너 ──
@@ -770,12 +770,12 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     fontWeight: '700',
     color: colors.textPrimary,
-    marginBottom: 2,
+    marginBottom: spacing.xs,
   },
   catBannerSub: {
     fontSize: fontSize.xs,
     color: colors.textSecondary,
-    marginBottom: 6,
+    marginBottom: spacing.sm,
   },
   catBannerBg: {
     height: 5,

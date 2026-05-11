@@ -1060,7 +1060,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.lg,
+    // 제목 → 기간 토글 (같은 헤더 영역) — md
+    marginBottom: spacing.md,
   },
   title: {
     fontSize: fontSize.xxl,
@@ -1075,7 +1076,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
     padding: spacing.xs,
-    marginBottom: spacing.lg,
+    // 토글 → 통계 그리드 (카드 영역으로) — lg는 과함, md 적절
+    marginBottom: spacing.md,
   },
   periodButton: {
     flex: 1,

@@ -610,20 +610,22 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: fontSize.sm,
     color: colors.textSecondary,
-    marginBottom: spacing.lg,
+    // 헤더 영역 → 폼 본문 — md
+    marginBottom: spacing.md,
     lineHeight: 20,
   },
   infoCard: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
     padding: spacing.md,
-    marginBottom: spacing.lg,
+    // 정보 카드 → 폼 — md
+    marginBottom: spacing.md,
   },
   infoCategory: {
     fontSize: fontSize.xs,
     color: colors.primary,
     fontWeight: '600',
-    marginBottom: 2,
+    marginBottom: spacing.xs,
   },
   infoName: {
     fontSize: fontSize.lg,
@@ -633,7 +635,7 @@ const styles = StyleSheet.create({
   infoMeta: {
     fontSize: fontSize.sm,
     color: colors.textSecondary,
-    marginTop: 2,
+    marginTop: spacing.xs,
   },
   label: {
     fontSize: fontSize.sm,
@@ -674,7 +676,7 @@ const styles = StyleSheet.create({
   weatherSub: {
     fontSize: fontSize.sm,
     color: colors.textSecondary,
-    marginTop: 2,
+    marginTop: spacing.xs,
   },
   row: {
     flexDirection: 'row',
@@ -688,7 +690,8 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     paddingVertical: spacing.md,
     alignItems: 'center',
-    marginTop: spacing.xl,
+    // 폼 끝 → 저장 버튼 (강조 위해 lg, xl은 과함)
+    marginTop: spacing.lg,
   },
   saveButtonText: {
     fontSize: fontSize.lg,

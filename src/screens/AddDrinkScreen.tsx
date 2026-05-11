@@ -648,7 +648,8 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: fontSize.md,
     color: colors.textSecondary,
-    marginBottom: spacing.xl,
+    // 헤더 영역 → 본문 — md (xl은 과함)
+    marginBottom: spacing.md,
   },
   backRow: {
     flexDirection: 'row',
@@ -693,7 +694,7 @@ const styles = StyleSheet.create({
   modeDesc: {
     fontSize: fontSize.sm,
     color: colors.textSecondary,
-    marginTop: 2,
+    marginTop: spacing.xs,
   },
   disabledText: {
     color: colors.textTertiary,
@@ -701,7 +702,8 @@ const styles = StyleSheet.create({
   // 검색
   searchContainer: {
     flexDirection: 'row',
-    marginBottom: spacing.lg,
+    // 검색 → 결과 영역 — md
+    marginBottom: spacing.md,
     marginTop: spacing.md,
   },
   searchInput: {
@@ -786,7 +788,8 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     paddingVertical: spacing.md,
     alignItems: 'center',
-    marginTop: spacing.xl,
+    // 폼 끝 → 저장 — lg (xl은 과함)
+    marginTop: spacing.lg,
   },
   saveButtonText: {
     fontSize: fontSize.lg,
@@ -814,7 +817,7 @@ const styles = StyleSheet.create({
   resultMeta: {
     fontSize: fontSize.sm,
     color: colors.textSecondary,
-    marginTop: 2,
+    marginTop: spacing.xs,
   },
   resultArrow: {
     fontSize: iconSize.md,
@@ -851,8 +854,8 @@ const styles = StyleSheet.create({
   barcodeBannerLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginBottom: 4,
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
   },
   barcodeBannerLabel: {
     fontSize: fontSize.xs,
@@ -864,7 +867,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontWeight: '600',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   barcodeBannerHint: {
     fontSize: fontSize.xs,

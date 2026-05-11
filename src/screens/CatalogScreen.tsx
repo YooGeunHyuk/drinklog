@@ -275,8 +275,10 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: fontSize.md,
     color: colors.textSecondary,
+    // 같은 헤더 영역 (제목 ↔ subtitle) = xs
     marginTop: spacing.xs,
-    marginBottom: spacing.lg,
+    // subtitle → 검색·필터 (다음 그룹) = md
+    marginBottom: spacing.md,
   },
   searchInput: {
     backgroundColor: colors.surface,
