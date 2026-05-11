@@ -9,6 +9,7 @@ import RequestDrinkScreen from '../screens/RequestDrinkScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import AddDrinkScreen from '../screens/AddDrinkScreen';
 import FriendsScreen from '../screens/FriendsScreen';
+import FriendRankingScreen from '../screens/FriendRankingScreen';
 
 export type RootStackParamList = {
   Tabs: undefined;
@@ -20,6 +21,7 @@ export type RootStackParamList = {
   RequestDrink: { prefillName?: string } | undefined;
   Settings: undefined;
   Friends: undefined;
+  FriendRanking: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -70,6 +72,11 @@ export default function RootNavigator() {
       <Stack.Screen
         name="Friends"
         component={FriendsScreen}
+        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen
+        name="FriendRanking"
+        component={FriendRankingScreen}
         options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
       />
     </Stack.Navigator>

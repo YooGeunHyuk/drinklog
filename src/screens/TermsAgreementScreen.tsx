@@ -55,11 +55,14 @@ export default function TermsAgreementScreen({ onComplete }: Props) {
       const now = new Date().toISOString();
       const { error } = await supabase
         .from('users')
-        .update({
-          terms_agreed_at: now,
-          privacy_agreed_at: now,
-        })
-        .eq('id', user.id);
+        .upsert(
+          {
+            id: user.id,
+            terms_agreed_at: now,
+            privacy_agreed_at: now,
+          },
+          { onConflict: 'id' },
+        );
       if (error) throw error;
       onComplete();
     } catch (err: any) {

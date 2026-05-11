@@ -45,7 +45,7 @@ export default function ProfileSetupScreen({ onComplete }: Props) {
         .from('users')
         .select('nickname, gender, birth_year, marketing_agreed')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
       if (cancelled || !data) return;
       if (data.nickname) setNickname(data.nickname);
       if (data.gender) setGender(data.gender as Gender);
@@ -94,13 +94,16 @@ export default function ProfileSetupScreen({ onComplete }: Props) {
       }
       const { error } = await supabase
         .from('users')
-        .update({
-          nickname: trimmedNickname,
-          gender: gender,
-          birth_year: year,
-          marketing_agreed: marketingAgreed,
-        })
-        .eq('id', user.id);
+        .upsert(
+          {
+            id: user.id,
+            nickname: trimmedNickname,
+            gender: gender,
+            birth_year: year,
+            marketing_agreed: marketingAgreed,
+          },
+          { onConflict: 'id' },
+        );
       if (error) throw error;
       onComplete();
     } catch (err: any) {

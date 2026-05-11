@@ -208,7 +208,17 @@ export default function FriendsScreen({ navigation }: any) {
           />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>친구</Text>
-        <View style={{ width: iconSize.md }} />
+        <TouchableOpacity
+          onPress={() => navigation.navigate('FriendRanking')}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Icon
+            set="lucide"
+            name="Trophy"
+            size={iconSize.md}
+            color={colors.primary}
+          />
+        </TouchableOpacity>
       </View>
 
       <ScrollView

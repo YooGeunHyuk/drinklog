@@ -46,14 +46,17 @@ export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
       return;
     }
     setIsLoading(true);
+    console.log('[Login] signInWithOtp 시작:', toE164(phone));
     try {
-      const { error } = await supabase.auth.signInWithOtp({
+      const { data, error } = await supabase.auth.signInWithOtp({
         phone: toE164(phone),
       });
+      console.log('[Login] signInWithOtp 응답:', { data, error });
       if (error) throw error;
       setStep('verify');
       Alert.alert('인증번호 발송', '인증번호가 발송되었습니다.');
     } catch (err: any) {
+      console.error('[Login] OTP 전송 실패:', err);
       Alert.alert('전송 실패', err.message ?? '인증번호 발송에 실패했습니다.');
     } finally {
       setIsLoading(false);
