@@ -14,6 +14,28 @@
 -- 중복 방지: ON CONFLICT (name, category) DO NOTHING
 -- ============================================
 
+-- ============================================
+-- 0. (name, category) UNIQUE 제약 보장
+-- ============================================
+-- ON CONFLICT 작동에 필요한 unique 인덱스가 없으면 자동 생성.
+-- 이미 있으면 skip.
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint c
+    where c.conname = 'drink_catalog_name_category_unique'
+  ) then
+    alter table drink_catalog
+      add constraint drink_catalog_name_category_unique
+      unique (name, category);
+  end if;
+end
+$$;
+
+-- ============================================
+-- 1. 시드 데이터 삽입
+-- ============================================
 insert into drink_catalog
   (name, category, brand, abv, volume_ml, avg_price, origin, source, verified, tasting_notes)
 values
