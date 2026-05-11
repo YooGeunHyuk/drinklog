@@ -36,6 +36,7 @@ import InfoBubble, { BubbleData } from '../components/InfoBubble';
 import Icon from '../components/Icon';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { buildPeriodBrag, shareBrag } from '../lib/share';
+import { listMyCompanionStats } from '../lib/companions';
 
 type Period = 'week' | 'month' | 'year' | 'all';
 
@@ -110,6 +111,9 @@ export default function StatsScreen() {
   const closeBubble = () => setBubble(null);
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [companionStats, setCompanionStats] = useState<
+    Array<{ user_id: string; nickname: string | null; count: number }>
+  >([]);
 
   const loadLogs = useCallback(async () => {
     try {
@@ -135,6 +139,14 @@ export default function StatsScreen() {
         .eq('id', user.id)
         .single();
       if (profile?.nickname) setNickname(profile.nickname);
+
+      // 함께한 친구 통계 (회식 모드 v2). 실패해도 통계 화면 동작.
+      try {
+        const stats = await listMyCompanionStats();
+        setCompanionStats(stats);
+      } catch {
+        setCompanionStats([]);
+      }
     } catch (err: any) {
       console.error('통계 로드 실패:', err.message);
       setLoadError(err?.message ?? '알 수 없는 오류가 발생했어요.');
@@ -1041,6 +1053,25 @@ export default function StatsScreen() {
             </>
           )}
         </View>
+
+        {/* 함께한 친구 TOP (회식 모드 v2) — 친구 태깅이 있을 때만 노출 */}
+        {companionStats.length > 0 && (
+          <View style={styles.companionCard}>
+            <Text style={styles.companionTitle}>함께한 친구 TOP</Text>
+            <Text style={styles.companionSubtitle}>
+              내 기록에 태그된 친구별 횟수
+            </Text>
+            {companionStats.slice(0, 5).map((c, i) => (
+              <View key={c.user_id} style={styles.companionRow}>
+                <Text style={styles.companionRank}>{i + 1}</Text>
+                <Text style={styles.companionName} numberOfLines={1}>
+                  {c.nickname ?? '익명'}
+                </Text>
+                <Text style={styles.companionCount}>{c.count}번</Text>
+              </View>
+            ))}
+          </View>
+        )}
       </ScrollView>
       {/* 뱃지/훈장/업적 탭 시 상세 말풍선 */}
       <InfoBubble data={bubble?.data ?? null} onClose={closeBubble} />
@@ -1728,5 +1759,45 @@ const styles = StyleSheet.create({
   collectionEntryMeta: {
     fontSize: fontSize.xs,
     color: colors.textSecondary,
+  },
+  // 함께한 친구 TOP (회식 모드 v2)
+  companionCard: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    marginTop: spacing.lg,
+  },
+  companionTitle: {
+    fontSize: fontSize.md,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  companionSubtitle: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  companionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    gap: spacing.md,
+  },
+  companionRank: {
+    fontSize: fontSize.md,
+    fontWeight: '700',
+    color: colors.primary,
+    width: 20,
+  },
+  companionName: {
+    fontSize: fontSize.sm,
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  companionCount: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    fontWeight: '600',
   },
 });
