@@ -17,26 +17,41 @@
 -- ============================================
 -- 0. 중복 제거 + (name, category) UNIQUE 제약 보장
 -- ============================================
--- (a) 기존 데이터에 (name, category) 중복이 있다면 가장 오래된 row만 남기고 정리.
---     같은 술의 중복이므로 데이터 손실 아님. drink_log의 catalog_id 참조는
---     ON DELETE 정책에 따라 그대로 처리됨.
--- (b) 그 후 unique 제약 생성.
--- (c) 이미 제약 있으면 skip.
+-- (a) 같은 (name, category) 중복이 있다면 가장 오래된 row를 keeper로 정함.
+-- (b) drink_log가 참조하는 다른 중복 row의 catalog_id를 keeper로 재연결.
+--     → drink_log 데이터 보존됨 (그냥 같은 술을 가리키도록 정리).
+-- (c) 이제 안전하게 중복 row 삭제.
+-- (d) (name, category) unique 제약 생성 (이미 있으면 skip).
 
--- (a) 중복 제거
-with ranked as (
-  select
-    id,
-    row_number() over (
-      partition by name, category
-      order by created_at asc nulls last, id asc
-    ) as rn
-  from drink_catalog
-)
-delete from drink_catalog
-where id in (select id from ranked where rn > 1);
+-- (a) keeper id 매트릭스 (임시 테이블로 캐시)
+create temporary table if not exists _dedupe_keepers as
+select distinct on (name, category)
+  name, category, id as keeper_id
+from drink_catalog
+order by name, category, created_at asc nulls last, id asc;
 
--- (b) + (c) unique 제약 보장
+-- (b) drink_log 참조 재연결 — 중복 catalog_id를 keeper로 redirect
+update drink_log dl
+set catalog_id = k.keeper_id
+from drink_catalog dc
+join _dedupe_keepers k
+  on dc.name = k.name and dc.category = k.category
+where dl.catalog_id = dc.id
+  and dc.id <> k.keeper_id;
+
+-- (c) 중복 row 삭제 (이제 FK 충돌 없음)
+delete from drink_catalog dc
+where exists (
+  select 1
+  from _dedupe_keepers k
+  where dc.name = k.name
+    and dc.category = k.category
+    and dc.id <> k.keeper_id
+);
+
+drop table _dedupe_keepers;
+
+-- (d) unique 제약 보장
 do $$
 begin
   if not exists (
