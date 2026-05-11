@@ -702,25 +702,27 @@ const styles = StyleSheet.create({
   // 검색
   searchContainer: {
     flexDirection: 'row',
-    // 검색 → 결과 영역 — md
+    alignItems: 'center',
     marginBottom: spacing.md,
     marginTop: spacing.md,
   },
   searchInput: {
     flex: 1,
+    height: 48,
     backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
     fontSize: fontSize.md,
     color: colors.textPrimary,
     marginRight: spacing.sm,
   },
   searchButton: {
+    width: 80,
+    height: 48,
     backgroundColor: colors.primary,
     borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.lg,
     justifyContent: 'center',
+    alignItems: 'center',
   },
   searchButtonText: {
     color: colors.textInverse,

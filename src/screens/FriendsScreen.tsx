@@ -423,23 +423,26 @@ const styles = StyleSheet.create({
   },
   addRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.sm,
   },
   addInput: {
     flex: 1,
+    height: 48,
     backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
     fontSize: fontSize.md,
     color: colors.textPrimary,
     letterSpacing: 2,
   },
   addBtn: {
+    width: 88,
+    height: 48,
     backgroundColor: colors.primary,
     borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.lg,
     justifyContent: 'center',
+    alignItems: 'center',
   },
   addBtnDisabled: {
     opacity: 0.6,
