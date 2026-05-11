@@ -26,6 +26,8 @@ import {
 import { uploadDrinkPhoto, uploadDrinkPhotos, deleteDrinkPhoto } from '../lib/storage';
 import { getDrinkLogPhotos, buildDrinkLogPhotoFields } from '../lib/photos';
 import { WEATHER_ICONS, WEATHER_LABELS, WeatherCode } from '../lib/weather';
+import { listMyFriends, FriendRow } from '../lib/friends';
+import { getCompanionsForLog, setCompanionsForLog } from '../lib/companions';
 import Icon from '../components/Icon';
 import EmptyState from '../components/EmptyState';
 
@@ -73,9 +75,37 @@ export default function EditDrinkScreen({ route, navigation }: Props) {
   const [removedExistingUrls, setRemovedExistingUrls] = useState<string[]>([]);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
+  // 친구 태깅 (회식 모드 v2)
+  const [friends, setFriends] = useState<FriendRow[]>([]);
+  const [taggedFriendIds, setTaggedFriendIds] = useState<Set<string>>(new Set());
+
   useEffect(() => {
     loadLog();
+    loadFriendsAndTags();
   }, [logId]);
+
+  const loadFriendsAndTags = async () => {
+    try {
+      const [friendList, tagged] = await Promise.all([
+        listMyFriends(),
+        getCompanionsForLog(logId),
+      ]);
+      // 친구 관계 accepted만 노출
+      setFriends(friendList.filter((f) => f.status === 'accepted'));
+      setTaggedFriendIds(new Set(tagged.map((t) => t.user_id)));
+    } catch {
+      // 친구 시스템 사용 안 해도 화면은 동작해야 함 — 조용히 실패
+    }
+  };
+
+  const toggleFriendTag = (userId: string) => {
+    setTaggedFriendIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  };
 
   const loadLog = async () => {
     try {
@@ -203,6 +233,14 @@ export default function EditDrinkScreen({ route, navigation }: Props) {
         .eq('id', logId);
 
       if (error) throw error;
+
+      // 친구 태깅 동기화 (실패해도 본 저장은 성공으로 처리)
+      try {
+        await setCompanionsForLog(logId, Array.from(taggedFriendIds));
+      } catch {
+        // 본인 기록이 아닌 경우 등 정책상 실패 가능 — 사용자에게는 조용히
+      }
+
       Alert.alert('저장 완료', '기록이 수정되었습니다.', [
         { text: '확인', onPress: () => navigation.goBack() },
       ]);
@@ -486,8 +524,46 @@ export default function EditDrinkScreen({ route, navigation }: Props) {
             onChangeText={setLocation}
           />
 
-          {/* 같이 마신 사람 */}
-          <Text style={styles.label}>같이 마신 사람</Text>
+          {/* 친구 태깅 (회식 모드 v2) */}
+          {friends.length > 0 && (
+            <>
+              <Text style={styles.label}>
+                함께한 친구 {taggedFriendIds.size > 0 ? `(${taggedFriendIds.size})` : ''}
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.friendChipRow}
+              >
+                {friends.map((f) => {
+                  const selected = taggedFriendIds.has(f.other.id);
+                  return (
+                    <TouchableOpacity
+                      key={f.other.id}
+                      style={[styles.friendChip, selected && styles.friendChipSelected]}
+                      onPress={() => toggleFriendTag(f.other.id)}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        style={[
+                          styles.friendChipText,
+                          selected && styles.friendChipTextSelected,
+                        ]}
+                      >
+                        {selected ? '✓ ' : ''}
+                        {f.other.nickname ?? '익명'}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </>
+          )}
+
+          {/* 같이 마신 사람 (친구 아닌 동행자 free-text) */}
+          <Text style={styles.label}>
+            {friends.length > 0 ? '그 외 동행자 (선택)' : '같이 마신 사람'}
+          </Text>
           <TextInput
             style={styles.input}
             placeholder="지민, 준호"
@@ -798,5 +874,31 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     color: colors.textSecondary,
     fontWeight: '500',
+  },
+  // 친구 태깅 칩 (회식 모드 v2)
+  friendChipRow: {
+    paddingVertical: spacing.xs,
+    gap: spacing.sm,
+  },
+  friendChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  friendChipSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  friendChipText: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  friendChipTextSelected: {
+    color: colors.textInverse,
+    fontWeight: '700',
   },
 });
