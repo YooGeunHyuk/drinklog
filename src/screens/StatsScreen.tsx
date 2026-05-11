@@ -669,11 +669,18 @@ export default function StatsScreen() {
             </View>
           )}
 
-          {/* 주도 점수 한 줄 */}
-          <Text style={styles.judoScoreLine}>
-            주도 점수 <Text style={styles.judoScoreValue}>{judoScore.toLocaleString()}</Text>
-            <Text style={styles.judoScoreHint}>  ·  ml÷100 + 술자리×100 + 연속 + 다양성×50</Text>
-          </Text>
+          {/* 주도 점수 — 메인 라인 + 공식 hint 두 줄 (같은 그룹이라 xs로 가까이) */}
+          <View style={styles.judoScoreBlock}>
+            <Text style={styles.judoScoreLine}>
+              주도 점수{' '}
+              <Text style={styles.judoScoreValue}>
+                {judoScore.toLocaleString()}
+              </Text>
+            </Text>
+            <Text style={styles.judoScoreHint}>
+              ml÷100 + 술자리×100 + 연속 + 다양성×50
+            </Text>
+          </View>
         </View>
 
         {/* 🎯 주종별 여정 */}
@@ -1210,8 +1217,8 @@ const styles = StyleSheet.create({
   badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    // 같은 그룹 내 (배지 → 한 줄 설명) = sm
-    marginBottom: spacing.sm,
+    // 같은 그룹 (배지 + 단계 설명) — 더 묶이도록 xs
+    marginBottom: spacing.xs,
   },
   badgeDesc: {
     fontSize: fontSize.xs,
@@ -1340,12 +1347,14 @@ const styles = StyleSheet.create({
     color: colors.textTertiary,
   },
   // 등급 로드맵
-  judoScoreLine: {
-    // 마지막 그룹과 분리 — divider + 충분한 호흡
+  judoScoreBlock: {
+    // 위 그룹(로드맵 토글)과 분리 — divider + lg
     marginTop: spacing.lg,
     paddingTop: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.border,
+  },
+  judoScoreLine: {
     fontSize: fontSize.sm,
     color: colors.textSecondary,
   },
@@ -1356,6 +1365,8 @@ const styles = StyleSheet.create({
   judoScoreHint: {
     fontSize: fontSize.xs,
     color: colors.textTertiary ?? colors.textSecondary,
+    // 같은 그룹(점수 + 공식) — 가까이 xs
+    marginTop: spacing.xs,
   },
   medalIntro: {
     fontSize: fontSize.sm,
