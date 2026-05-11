@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
   Alert,
   ActivityIndicator,
   Image,
+  Modal,
+  FlatList,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { colors, spacing, fontSize, borderRadius, iconSize } from '../constants/theme';
@@ -78,6 +80,8 @@ export default function EditDrinkScreen({ route, navigation }: Props) {
   // 친구 태깅 (회식 모드 v2)
   const [friends, setFriends] = useState<FriendRow[]>([]);
   const [taggedFriendIds, setTaggedFriendIds] = useState<Set<string>>(new Set());
+  const [showFriendPicker, setShowFriendPicker] = useState(false);
+  const [friendSearch, setFriendSearch] = useState('');
 
   useEffect(() => {
     loadLog();
@@ -523,39 +527,62 @@ export default function EditDrinkScreen({ route, navigation }: Props) {
             onChangeText={setLocation}
           />
 
-          {/* 친구 태깅 (회식 모드 v2) */}
+          {/* 친구 태깅 (회식 모드 v2) — 선택된 친구만 칩 + "친구 선택" 버튼 → 모달 */}
           {friends.length > 0 && (
             <>
               <Text style={styles.label}>
                 함께한 친구 {taggedFriendIds.size > 0 ? `(${taggedFriendIds.size})` : ''}
               </Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.friendChipRow}
-              >
-                {friends.map((f) => {
-                  const selected = taggedFriendIds.has(f.other.id);
-                  return (
-                    <TouchableOpacity
-                      key={f.other.id}
-                      style={[styles.friendChip, selected && styles.friendChipSelected]}
-                      onPress={() => toggleFriendTag(f.other.id)}
-                      activeOpacity={0.7}
-                    >
-                      <Text
-                        style={[
-                          styles.friendChipText,
-                          selected && styles.friendChipTextSelected,
-                        ]}
-                      >
-                        {selected ? '✓ ' : ''}
-                        {f.other.nickname ?? '익명'}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+              <View style={styles.taggedFriendRow}>
+                {/* 선택된 친구 칩 (가로 스크롤). 100명 친구 있어도 N개만 표시. */}
+                {taggedFriendIds.size > 0 && (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.friendChipRow}
+                    style={{ flex: 1 }}
+                  >
+                    {friends
+                      .filter((f) => taggedFriendIds.has(f.other.id))
+                      .map((f) => (
+                        <TouchableOpacity
+                          key={f.other.id}
+                          style={[styles.friendChip, styles.friendChipSelected]}
+                          onPress={() => toggleFriendTag(f.other.id)}
+                          activeOpacity={0.7}
+                        >
+                          <Text
+                            style={[
+                              styles.friendChipText,
+                              styles.friendChipTextSelected,
+                            ]}
+                          >
+                            {f.other.nickname ?? '익명'} ✕
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                  </ScrollView>
+                )}
+                {/* 친구 선택 버튼 → 모달 */}
+                <TouchableOpacity
+                  style={styles.friendPickerBtn}
+                  onPress={() => {
+                    setFriendSearch('');
+                    setShowFriendPicker(true);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Icon
+                    set="lucide"
+                    name="UserPlus"
+                    size={iconSize.sm}
+                    color={colors.primary}
+                  />
+                  <Text style={styles.friendPickerBtnText}>
+                    {taggedFriendIds.size === 0 ? '친구 선택' : '변경'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </>
           )}
 
@@ -648,6 +675,83 @@ export default function EditDrinkScreen({ route, navigation }: Props) {
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* 친구 선택 모달 (회식 모드 v2) — 친구 많아도 검색·스크롤로 처리 */}
+      <Modal
+        visible={showFriendPicker}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowFriendPicker(false)}
+      >
+        <SafeAreaView style={styles.container}>
+          {/* 헤더 */}
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setShowFriendPicker(false)}>
+              <Text style={styles.modalCancelText}>취소</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>
+              친구 선택 ({taggedFriendIds.size})
+            </Text>
+            <TouchableOpacity onPress={() => setShowFriendPicker(false)}>
+              <Text style={styles.modalDoneText}>완료</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* 검색 */}
+          <View style={styles.modalSearchWrap}>
+            <TextInput
+              style={styles.modalSearchInput}
+              placeholder="이름으로 검색"
+              placeholderTextColor={colors.textTertiary}
+              value={friendSearch}
+              onChangeText={setFriendSearch}
+              autoFocus={false}
+            />
+          </View>
+
+          {/* 친구 목록 */}
+          <FlatList
+            data={friends.filter((f) => {
+              const q = friendSearch.trim().toLowerCase();
+              if (!q) return true;
+              return (f.other.nickname ?? '').toLowerCase().includes(q);
+            })}
+            keyExtractor={(f) => f.other.id}
+            contentContainerStyle={{ paddingBottom: spacing.xl }}
+            ListEmptyComponent={
+              <View style={{ padding: spacing.xl, alignItems: 'center' }}>
+                <Text style={styles.modalEmptyText}>
+                  {friendSearch ? '검색 결과 없음' : '아직 친구가 없어요'}
+                </Text>
+              </View>
+            }
+            renderItem={({ item }) => {
+              const selected = taggedFriendIds.has(item.other.id);
+              return (
+                <TouchableOpacity
+                  style={styles.modalFriendRow}
+                  onPress={() => toggleFriendTag(item.other.id)}
+                  activeOpacity={0.7}
+                >
+                  <View
+                    style={[
+                      styles.modalCheckbox,
+                      selected && styles.modalCheckboxSelected,
+                    ]}
+                  >
+                    {selected && (
+                      <Text style={styles.modalCheckboxMark}>✓</Text>
+                    )}
+                  </View>
+                  <Text style={styles.modalFriendName}>
+                    {item.other.nickname ?? '익명'}
+                  </Text>
+                </TouchableOpacity>
+              );
+            }}
+          />
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -874,7 +978,12 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontWeight: '500',
   },
-  // 친구 태깅 칩 (회식 모드 v2)
+  // 친구 태깅 (회식 모드 v2) — 칩 + 버튼 + 모달
+  taggedFriendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   friendChipRow: {
     paddingVertical: spacing.xs,
     gap: spacing.sm,
@@ -899,5 +1008,93 @@ const styles = StyleSheet.create({
   friendChipTextSelected: {
     color: colors.textInverse,
     fontWeight: '700',
+  },
+  friendPickerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+  },
+  friendPickerBtnText: {
+    fontSize: fontSize.sm,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  // 친구 picker 모달
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  modalTitle: {
+    fontSize: fontSize.md,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  modalCancelText: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+  },
+  modalDoneText: {
+    fontSize: fontSize.sm,
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  modalSearchWrap: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  modalSearchInput: {
+    height: 44,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    fontSize: fontSize.md,
+    color: colors.textPrimary,
+  },
+  modalFriendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  modalCheckbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCheckboxSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  modalCheckboxMark: {
+    color: colors.textInverse,
+    fontSize: fontSize.sm,
+    fontWeight: '700',
+  },
+  modalFriendName: {
+    flex: 1,
+    fontSize: fontSize.md,
+    color: colors.textPrimary,
+  },
+  modalEmptyText: {
+    fontSize: fontSize.sm,
+    color: colors.textTertiary,
   },
 });
