@@ -29,6 +29,7 @@ import { getCategoryIcon } from '../constants/categoryIcons';
 import { ErrorBanner } from '../components/ErrorBanner';
 import EmptyState from '../components/EmptyState';
 import SummaryStatRow from '../components/SummaryStatRow';
+import { buildMonthlyBrag, shareBrag } from '../lib/share';
 
 export default function HomeScreen({ navigation }: any) {
   const [nickname, setNickname] = useState<string>('');
@@ -297,9 +298,33 @@ export default function HomeScreen({ navigation }: any) {
         <View style={styles.summaryCard}>
           <View style={styles.summaryHeader}>
             <Text style={styles.summaryTitle}>음주 요약</Text>
-            <View style={styles.streakChip}>
-              <Text style={styles.streakChipFlame}>{streak >= 3 ? '🔥' : '💧'}</Text>
-              <Text style={styles.streakChipText}>연속 {streak}일</Text>
+            <View style={styles.summaryHeaderRight}>
+              <View style={styles.streakChip}>
+                <Text style={styles.streakChipFlame}>{streak >= 3 ? '🔥' : '💧'}</Text>
+                <Text style={styles.streakChipText}>연속 {streak}일</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() =>
+                  shareBrag(
+                    buildMonthlyBrag({
+                      bottles: monthStats.bottles,
+                      cost: monthStats.cost,
+                      days: monthStats.days,
+                      nickname: nickname || undefined,
+                    }),
+                    '이번 달 음주 기록',
+                  )
+                }
+                style={styles.shareBtn}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Icon
+                  set="lucide"
+                  name="Share2"
+                  size={iconSize.sm}
+                  color={colors.textSecondary}
+                />
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -526,6 +551,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: spacing.md,
+  },
+  summaryHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  shareBtn: {
+    padding: spacing.xs,
   },
   summaryTitle: {
     fontSize: fontSize.sm,

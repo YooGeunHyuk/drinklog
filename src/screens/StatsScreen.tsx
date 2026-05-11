@@ -35,6 +35,7 @@ import { buildCollection, collectionStats } from '../lib/collection';
 import InfoBubble, { BubbleData } from '../components/InfoBubble';
 import Icon from '../components/Icon';
 import { ErrorBanner } from '../components/ErrorBanner';
+import { buildPeriodBrag, shareBrag } from '../lib/share';
 
 type Period = 'week' | 'month' | 'year' | 'all';
 
@@ -84,6 +85,7 @@ const CATEGORY_COLORS: Record<DrinkCategory, string> = {
 export default function StatsScreen() {
   const [period, setPeriod] = useState<Period>('week');
   const [logs, setLogs] = useState<DrinkLog[]>([]);
+  const [nickname, setNickname] = useState<string>('');
   const [levelRoadmapOpen, setLevelRoadmapOpen] = useState(false);
   const [achievementsOpen, setAchievementsOpen] = useState(false);
   // 뱃지/훈장/업적 탭 시 뜨는 말풍선
@@ -125,6 +127,14 @@ export default function StatsScreen() {
 
       if (error) throw error;
       setLogs((data as DrinkLog[]) ?? []);
+
+      // 닉네임 — 공유 텍스트에 사용
+      const { data: profile } = await supabase
+        .from('users')
+        .select('nickname')
+        .eq('id', user.id)
+        .single();
+      if (profile?.nickname) setNickname(profile.nickname);
     } catch (err: any) {
       console.error('통계 로드 실패:', err.message);
       setLoadError(err?.message ?? '알 수 없는 오류가 발생했어요.');
@@ -360,7 +370,31 @@ export default function StatsScreen() {
           onRetry={loadLogs}
           onDismiss={() => setLoadError(null)}
         />
-        <Text style={styles.title}>통계</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>통계</Text>
+          <TouchableOpacity
+            onPress={() =>
+              shareBrag(
+                buildPeriodBrag(PERIOD_LABELS[period], {
+                  bottles: stats.bottles,
+                  cost: stats.cost,
+                  days: stats.days,
+                  nickname: nickname || undefined,
+                }),
+                `${PERIOD_LABELS[period]} 음주 기록`,
+              )
+            }
+            style={styles.titleShareBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Icon
+              set="lucide"
+              name="Share2"
+              size={iconSize.sm}
+              color={colors.textSecondary}
+            />
+          </TouchableOpacity>
+        </View>
 
         {/* 기간 토글 */}
         <View style={styles.periodToggle}>
@@ -1015,11 +1049,19 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: spacing.lg,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.lg,
+  },
   title: {
     fontSize: fontSize.xxl,
     fontWeight: '700',
     color: colors.textPrimary,
-    marginBottom: spacing.lg,
+  },
+  titleShareBtn: {
+    padding: spacing.xs,
   },
   periodToggle: {
     flexDirection: 'row',
