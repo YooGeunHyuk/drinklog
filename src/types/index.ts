@@ -110,4 +110,13 @@ export interface DrinkLog {
   created_at: string;
   // 조인용
   drink_catalog?: DrinkCatalog;
+  // 친구 태깅 (회식 모드 v2). companions(text)는 친구가 아닌 동행자 free-text fallback.
+  companion_user_ids?: string[];
+}
+
+// drink_log_companions 테이블 row
+export interface DrinkLogCompanion {
+  drink_log_id: string;
+  companion_user_id: string;
+  tagged_at: string;
 }

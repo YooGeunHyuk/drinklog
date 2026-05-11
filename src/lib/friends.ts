@@ -99,42 +99,58 @@ export async function unfriend(rowId: string): Promise<void> {
   if (error) throw error;
 }
 
-/** 내 친구·요청 전체 조회 (양방향) */
+/** 내 친구·요청 전체 조회 (양방향)
+ *
+ *  ⚠️ friends.user_id / friend_id는 auth.users(id) FK이지만 nickname·friend_code는
+ *     public.users에 있다. PostgREST embed로 join하면 schema 불일치로 row 자체가
+ *     필터링되어 친구 목록이 비는 버그가 있어서, 두 단계로 분리해서 가져온다.
+ */
 export async function listMyFriends(): Promise<FriendRow[]> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return [];
 
-  // 내가 user_id인 row + 내가 friend_id인 row 모두 가져옴
-  const { data } = await supabase
+  // 1) friends row들 (양방향)
+  const { data: rows } = await supabase
     .from('friends')
-    .select(
-      'id, user_id, friend_id, status, created_at, ' +
-        'requester:users!friends_user_id_fkey(id, nickname, friend_code), ' +
-        'receiver:users!friends_friend_id_fkey(id, nickname, friend_code)',
-    )
+    .select('id, user_id, friend_id, status, created_at')
     .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
     .neq('status', 'rejected')
     .order('created_at', { ascending: false });
 
-  if (!data) return [];
+  if (!rows || rows.length === 0) return [];
 
-  return data.map((row: any) => {
+  // 2) 상대방 user id 수집 후 public.users에서 nickname·friend_code 가져오기
+  const otherIds = Array.from(
+    new Set(
+      rows.map((r) => (r.user_id === user.id ? r.friend_id : r.user_id)),
+    ),
+  );
+  const { data: profiles } = await supabase
+    .from('users')
+    .select('id, nickname, friend_code')
+    .in('id', otherIds);
+  const profileMap = new Map(
+    (profiles ?? []).map((p) => [p.id as string, p]),
+  );
+
+  return rows.map((row): FriendRow => {
     const outgoing = row.user_id === user.id;
-    const other = outgoing ? row.receiver : row.requester;
+    const otherId = outgoing ? row.friend_id : row.user_id;
+    const profile = profileMap.get(otherId);
     return {
       id: row.id,
       user_id: row.user_id,
       friend_id: row.friend_id,
       status: row.status as FriendStatus,
       created_at: row.created_at,
-      other: other ?? {
-        id: outgoing ? row.friend_id : row.user_id,
-        nickname: null,
-        friend_code: null,
+      other: {
+        id: otherId,
+        nickname: profile?.nickname ?? null,
+        friend_code: profile?.friend_code ?? null,
       },
       outgoing,
-    } satisfies FriendRow;
+    };
   });
 }
