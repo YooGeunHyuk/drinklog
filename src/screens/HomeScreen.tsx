@@ -30,6 +30,17 @@ import { ErrorBanner } from '../components/ErrorBanner';
 import EmptyState from '../components/EmptyState';
 import SummaryStatRow from '../components/SummaryStatRow';
 import { buildMonthlyBrag, shareBrag } from '../lib/share';
+import CelebrationModal, {
+  CelebrationPayload,
+} from '../components/CelebrationModal';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getMilestoneProgress } from '../constants/milestones';
+
+const CELEBRATION_SEEN_KEY = '@drinklog/celebration/last-seen-v1';
+interface LastSeen {
+  milestoneMl: number; // 가장 최근 본 마일스톤 ml
+  levelRank: number; // 가장 최근 본 레벨
+}
 
 export default function HomeScreen({ navigation }: any) {
   const [nickname, setNickname] = useState<string>('');
@@ -54,6 +65,9 @@ export default function HomeScreen({ navigation }: any) {
   const [refreshing, setRefreshing] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [celebration, setCelebration] = useState<CelebrationPayload | null>(
+    null,
+  );
 
   // 관리자 뱃지 — 한 번만 체크
   React.useEffect(() => {
@@ -76,6 +90,61 @@ export default function HomeScreen({ navigation }: any) {
     ]);
   };
 
+  // 축하 트리거 — AsyncStorage에 마지막으로 본 milestone/level을 저장하고
+  // 새 값과 비교해서 변화가 있으면 CelebrationModal을 띄움.
+  // 첫 로드 시에는 비교 없이 baseline만 저장.
+  const checkCelebration = async (
+    totalMl: number,
+    score: number,
+    nick: string,
+  ) => {
+    try {
+      const ms = getMilestoneProgress(totalMl);
+      const lvl = getLevel(score);
+      const currentMilestone = ms.current;
+
+      const seenRaw = await AsyncStorage.getItem(CELEBRATION_SEEN_KEY);
+      const seen: LastSeen | null = seenRaw ? JSON.parse(seenRaw) : null;
+
+      if (seen) {
+        // 우선순위: 레벨업 > 마일스톤 (둘 다 발생 시 레벨업 먼저)
+        if (lvl.rank > seen.levelRank) {
+          setCelebration({
+            kind: 'levelup',
+            emoji: lvl.emoji,
+            title: `Lv ${lvl.rank} ${lvl.title}`,
+            subtitle: lvl.desc,
+            level: lvl.rank,
+            nickname: nick || undefined,
+          });
+        } else if (
+          currentMilestone &&
+          currentMilestone.ml > seen.milestoneMl
+        ) {
+          setCelebration({
+            kind: 'milestone',
+            emoji: currentMilestone.emoji,
+            title: `${currentMilestone.icon} 돌파!`,
+            subtitle: currentMilestone.msg,
+            milestoneLabel: currentMilestone.icon,
+            nickname: nick || undefined,
+          });
+        }
+      }
+
+      const newSeen: LastSeen = {
+        milestoneMl: currentMilestone?.ml ?? 0,
+        levelRank: lvl.rank,
+      };
+      await AsyncStorage.setItem(
+        CELEBRATION_SEEN_KEY,
+        JSON.stringify(newSeen),
+      );
+    } catch {
+      // 축하는 부가 기능 — 실패해도 메인 흐름에 영향 없게 조용히 무시
+    }
+  };
+
   const loadData = useCallback(async () => {
     try {
       setLoadError(null);
@@ -90,7 +159,8 @@ export default function HomeScreen({ navigation }: any) {
         .select('nickname')
         .eq('id', user.id)
         .single();
-      setNickname(profile?.nickname ?? '');
+      const nick = profile?.nickname ?? '';
+      setNickname(nick);
 
       // 날짜 계산
       const now = new Date();
@@ -151,7 +221,16 @@ export default function HomeScreen({ navigation }: any) {
         });
         const streakBonus = computeStreakBonus(allLogs as unknown as DrinkLog[]);
         const unique = countUniqueDrinks(allLogs as unknown as DrinkLog[]);
-        setJudoScore(computeJudoScore(total, sessionKeys.size, streakBonus, unique));
+        const score = computeJudoScore(
+          total,
+          sessionKeys.size,
+          streakBonus,
+          unique,
+        );
+        setJudoScore(score);
+
+        // 축하 트리거 — 마일스톤·레벨 변화 감지
+        await checkCelebration(total, score, nick);
 
         // 메인 주종 (가장 많이 마신 카테고리 누적 ml)
         const catMl: Partial<Record<DrinkCategory, number>> = {};
@@ -480,6 +559,11 @@ export default function HomeScreen({ navigation }: any) {
         </View>
       </ScrollView>
 
+      <CelebrationModal
+        visible={celebration !== null}
+        payload={celebration}
+        onClose={() => setCelebration(null)}
+      />
     </SafeAreaView>
   );
 }
