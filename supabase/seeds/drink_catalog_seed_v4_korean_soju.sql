@@ -15,10 +15,28 @@
 -- ============================================
 
 -- ============================================
--- 0. (name, category) UNIQUE 제약 보장
+-- 0. 중복 제거 + (name, category) UNIQUE 제약 보장
 -- ============================================
--- ON CONFLICT 작동에 필요한 unique 인덱스가 없으면 자동 생성.
--- 이미 있으면 skip.
+-- (a) 기존 데이터에 (name, category) 중복이 있다면 가장 오래된 row만 남기고 정리.
+--     같은 술의 중복이므로 데이터 손실 아님. drink_log의 catalog_id 참조는
+--     ON DELETE 정책에 따라 그대로 처리됨.
+-- (b) 그 후 unique 제약 생성.
+-- (c) 이미 제약 있으면 skip.
+
+-- (a) 중복 제거
+with ranked as (
+  select
+    id,
+    row_number() over (
+      partition by name, category
+      order by created_at asc nulls last, id asc
+    ) as rn
+  from drink_catalog
+)
+delete from drink_catalog
+where id in (select id from ranked where rn > 1);
+
+-- (b) + (c) unique 제약 보장
 do $$
 begin
   if not exists (
