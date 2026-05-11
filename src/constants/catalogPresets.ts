@@ -523,6 +523,52 @@ const STEP10_SPIRITS = `name,brand,category,abv,volume_ml,origin,avg_price,tasti
 레미마르탱 VSOP,레미마르탱,spirits,40.0,700,프랑스,100000,코냑,csv,true
 `;
 
+// ─────────────────────────────────────────
+// 11단계: 생맥주 (드래프트) — 잔/피처 사이즈
+// 가게에서 마시는 생맥주는 brand가 불명확한 경우가 많아 generic 옵션도 포함
+// ─────────────────────────────────────────
+const STEP11_DRAFT_BEER = `name,brand,category,abv,volume_ml,origin,avg_price,tasting_notes,source,verified
+# Generic — 가게에서 "생맥주"라고 부를 때
+생맥주 (한 잔 300ml),,beer,4.5,300,한국,3000,일반 생맥주 작은 잔,csv,true
+생맥주 (한 잔 500ml),,beer,4.5,500,한국,4000,일반 생맥주 표준 잔,csv,true
+생맥주 (1L),,beer,4.5,1000,한국,7000,일반 생맥주 1L,csv,true
+생맥주 피처 (1.7L),,beer,4.5,1700,한국,12000,일반 생맥주 피처 (소),csv,true
+생맥주 피처 (3L),,beer,4.5,3000,한국,18000,일반 생맥주 피처 (표준),csv,true
+생맥주 피처 (5L),,beer,4.5,5000,한국,28000,일반 생맥주 피처 (대),csv,true
+# 카스 생맥주
+카스 생맥주 (500ml),오비맥주,beer,4.5,500,한국,4000,잔,csv,true
+카스 생맥주 (1L),오비맥주,beer,4.5,1000,한국,7000,1L 잔,csv,true
+카스 생맥주 피처 (3L),오비맥주,beer,4.5,3000,한국,18000,피처,csv,true
+카스 생맥주 피처 (5L),오비맥주,beer,4.5,5000,한국,28000,대 피처,csv,true
+# 테라 생맥주
+테라 생맥주 (500ml),하이트진로,beer,4.6,500,한국,4500,잔,csv,true
+테라 생맥주 (1L),하이트진로,beer,4.6,1000,한국,8000,1L 잔,csv,true
+테라 생맥주 피처 (3L),하이트진로,beer,4.6,3000,한국,20000,피처,csv,true
+테라 생맥주 피처 (5L),하이트진로,beer,4.6,5000,한국,30000,대 피처,csv,true
+# 켈리 생맥주
+켈리 생맥주 (500ml),하이트진로,beer,4.5,500,한국,4500,잔,csv,true
+켈리 생맥주 (1L),하이트진로,beer,4.5,1000,한국,8000,1L 잔,csv,true
+켈리 생맥주 피처 (3L),하이트진로,beer,4.5,3000,한국,20000,피처,csv,true
+# 클라우드 생 드래프트
+클라우드 생 생맥주 (500ml),롯데칠성,beer,5.0,500,한국,4500,잔,csv,true
+클라우드 생 생맥주 (1L),롯데칠성,beer,5.0,1000,한국,8000,1L 잔,csv,true
+# 한맥 생맥주
+한맥 생맥주 (500ml),오비맥주,beer,4.6,500,한국,4500,잔,csv,true
+한맥 생맥주 (1L),오비맥주,beer,4.6,1000,한국,8000,1L 잔,csv,true
+# 수입 생맥주
+하이네켄 생맥주 (500ml),하이네켄,beer,5.0,500,네덜란드,5500,잔,csv,true
+하이네켄 생맥주 (1L),하이네켄,beer,5.0,1000,네덜란드,9500,1L 잔,csv,true
+아사히 수퍼드라이 생맥주 (500ml),아사히,beer,5.0,500,일본,5500,잔,csv,true
+아사히 수퍼드라이 생맥주 (1L),아사히,beer,5.0,1000,일본,9500,1L 잔,csv,true
+삿포로 생맥주 (500ml),삿포로,beer,5.0,500,일본,5500,잔,csv,true
+삿포로 생맥주 (1L),삿포로,beer,5.0,1000,일본,9500,1L 잔,csv,true
+기네스 드래프트 (1파인트 568ml),기네스,beer,4.2,568,아일랜드,9000,파인트 잔,csv,true
+필스너 우르켈 생맥주 (500ml),Pilsner Urquell,beer,4.4,500,체코,5500,잔,csv,true
+파울라너 생맥주 (500ml),Paulaner,beer,5.5,500,독일,6000,잔,csv,true
+호가든 생맥주 (500ml),ABInBev,beer,4.9,500,벨기에,5500,잔,csv,true
+스텔라 아르투아 생맥주 (500ml),ABInBev,beer,5.2,500,벨기에,5500,잔,csv,true
+`;
+
 export const PRESET_CATALOGS: CatalogPreset[] = [
   {
     id: 'step1_regional_soju',
@@ -583,6 +629,12 @@ export const PRESET_CATALOGS: CatalogPreset[] = [
     title: '10단계 · 양주/스피릿',
     count: countRows(STEP10_SPIRITS),
     csv: STEP10_SPIRITS,
+  },
+  {
+    id: 'step11_draft_beer',
+    title: '11단계 · 생맥주 (잔/피처)',
+    count: countRows(STEP11_DRAFT_BEER),
+    csv: STEP11_DRAFT_BEER,
   },
 ];
 

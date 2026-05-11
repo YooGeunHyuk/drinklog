@@ -9,10 +9,11 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
+import { colors, spacing, fontSize, borderRadius, iconSize } from '../constants/theme';
 import { supabase } from '../lib/supabase';
 import { DrinkCatalog, CATEGORY_LABELS } from '../types';
 import { fetchFromOpenFoodFacts } from '../lib/openFoodFacts';
+import Icon from '../components/Icon';
 
 interface Props {
   navigation: any;
@@ -161,7 +162,7 @@ export default function ScanDrinkScreen({ navigation }: Props) {
   if (!permission.granted) {
     return (
       <SafeAreaView style={[styles.container, styles.centered]}>
-        <Text style={styles.permissionIcon}>📷</Text>
+        <Icon name="Camera" size={iconSize.xxl} color={colors.textTertiary} style={styles.permissionIcon} />
         <Text style={styles.permissionTitle}>카메라 권한이 필요해요</Text>
         <Text style={styles.permissionText}>
           바코드를 스캔하려면 카메라 접근 권한이 필요합니다.
@@ -186,8 +187,9 @@ export default function ScanDrinkScreen({ navigation }: Props) {
     <SafeAreaView style={styles.container}>
       {/* 상단 바 */}
       <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backButton}>← 닫기</Text>
+        <TouchableOpacity style={styles.backRow} onPress={() => navigation.goBack()}>
+          <Icon name="ChevronLeft" size={iconSize.sm} color={colors.primary} />
+          <Text style={styles.backButton}>닫기</Text>
         </TouchableOpacity>
         <Text style={styles.topTitle}>바코드 스캔</Text>
         <View style={{ width: 60 }} />
@@ -323,10 +325,15 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     backgroundColor: colors.background,
   },
+  backRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    width: 60,
+  },
   backButton: {
     fontSize: fontSize.md,
     color: colors.primary,
-    width: 60,
   },
   topTitle: {
     fontSize: fontSize.md,
@@ -479,7 +486,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   permissionIcon: {
-    fontSize: 64,
     marginBottom: spacing.lg,
   },
   permissionTitle: {

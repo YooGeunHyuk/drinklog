@@ -5,16 +5,17 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   RefreshControl,
   Alert,
-  Image,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
+import { colors, spacing, fontSize, borderRadius, iconSize } from '../constants/theme';
 import { DrinkCategory, CATEGORY_LABELS, DrinkLog, MOOD_ICONS } from '../types';
 import { supabase } from '../lib/supabase';
 import { WEATHER_ICONS, WeatherCode } from '../lib/weather';
+import Icon from '../components/Icon';
+import { getCategoryIcon } from '../constants/categoryIcons';
 
 type FilterCategory = 'all' | DrinkCategory;
 
@@ -171,7 +172,7 @@ export default function HistoryScreen({ navigation }: any) {
   const allSelected = filteredLogs.length > 0 && selectedIds.size === filteredLogs.length;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {/* 헤더 */}
       <View style={styles.header}>
         <Text style={styles.title}>기록 목록</Text>
@@ -233,7 +234,7 @@ export default function HistoryScreen({ navigation }: any) {
         {/* 빈 상태 or 목록 */}
         {filteredLogs.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>📋</Text>
+            <Icon name="ListChecks" size={iconSize.xxl} color={colors.textTertiary} />
             <Text style={styles.emptyText}>
               {filter === 'all' ? '아직 기록이 없어요' : '해당 주종 기록이 없어요'}
             </Text>
@@ -256,67 +257,88 @@ export default function HistoryScreen({ navigation }: any) {
                 {dayLogs.map((log) => {
                   const isSelected = selectedIds.has(log.id);
                   return (
-                    <TouchableOpacity
-                      key={log.id}
-                      style={[styles.logItem, isSelected && styles.logItemSelected]}
-                      onPress={() => {
-                        if (isEditMode) {
-                          toggleSelect(log.id);
-                        } else {
-                          navigation.getParent()?.navigate('EditDrink', { logId: log.id });
-                        }
-                      }}
-                      onLongPress={() => {
-                        if (!isEditMode) {
-                          enterEditMode();
-                          // 롱프레스한 항목 바로 선택
-                          setSelectedIds(new Set([log.id]));
-                        }
-                      }}
-                      delayLongPress={400}
-                      activeOpacity={0.7}
-                    >
-                      {/* 체크박스 */}
-                      {isEditMode && (
-                        <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-                          {isSelected && <Text style={styles.checkmark}>✓</Text>}
-                        </View>
-                      )}
-
-                      <View style={styles.logTimeCol}>
-                        <Text style={styles.logTime}>{formatTime(log.logged_at)}</Text>
-                      </View>
-
-                      {log.photo_url && !isEditMode ? (
-                        <Image source={{ uri: log.photo_url }} style={styles.logThumb} />
-                      ) : null}
-
-                      <View style={styles.logContentCol}>
-                        <Text style={styles.logName}>
-                          {log.mood ? `${MOOD_ICONS[log.mood]} ` : ''}
-                          {log.weather ? `${WEATHER_ICONS[log.weather as WeatherCode] ?? ''} ` : ''}
-                          {log.drink_catalog?.name ?? '이름 없음'}
-                        </Text>
-                        <Text style={styles.logMeta}>
-                          {log.drink_catalog ? CATEGORY_LABELS[log.drink_catalog.category] : ''}
-                          {` · ${log.bottles}병`}
-                          {log.price_paid ? ` · ₩${log.price_paid.toLocaleString()}` : ''}
-                          {log.temperature != null ? ` · ${log.temperature.toFixed(0)}°C` : ''}
-                        </Text>
-                        {(log.location || log.companions) && (
-                          <Text style={styles.logSub} numberOfLines={1}>
-                            {log.location ? `📍 ${log.location}` : ''}
-                            {log.location && log.companions ? '  ' : ''}
-                            {log.companions ? `👥 ${log.companions}` : ''}
-                          </Text>
+                    <View key={log.id} style={styles.logBlock}>
+                      {/* 카드 위 시간 라벨 */}
+                      <Text style={styles.logTimeAboveCard}>{formatTime(log.logged_at)}</Text>
+                      <TouchableOpacity
+                        style={[styles.logItem, isSelected && styles.logItemSelected]}
+                        onPress={() => {
+                          if (isEditMode) {
+                            toggleSelect(log.id);
+                          } else {
+                            navigation.getParent()?.navigate('EditDrink', { logId: log.id });
+                          }
+                        }}
+                        onLongPress={() => {
+                          if (!isEditMode) {
+                            enterEditMode();
+                            setSelectedIds(new Set([log.id]));
+                          }
+                        }}
+                        delayLongPress={400}
+                        activeOpacity={0.7}
+                      >
+                        {/* 체크박스 */}
+                        {isEditMode && (
+                          <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+                            {isSelected && <Text style={styles.checkmark}>✓</Text>}
+                          </View>
                         )}
-                        {log.note ? (
-                          <Text style={styles.logMemo} numberOfLines={1}>{log.note}</Text>
-                        ) : null}
-                      </View>
 
-                      {!isEditMode && <Text style={styles.chevron}>›</Text>}
-                    </TouchableOpacity>
+                        {/* 좌측: 아이콘 컬럼 */}
+                        {log.drink_catalog && (() => {
+                          const ci = getCategoryIcon(log.drink_catalog.category);
+                          return (
+                            <View style={styles.logIconCol}>
+                              <Icon
+                                set={ci.set}
+                                name={ci.name}
+                                size={iconSize.sm}
+                                color={colors.textSecondary}
+                              />
+                            </View>
+                          );
+                        })()}
+
+                        {/* 중앙: 텍스트 컬럼 (name과 meta가 같은 좌정렬) */}
+                        <View style={styles.logContentCol}>
+                          <Text style={styles.logName} numberOfLines={1}>
+                            {log.drink_catalog?.name ?? '이름 없음'}
+                          </Text>
+                          <Text style={styles.logMeta}>
+                            {log.drink_catalog ? CATEGORY_LABELS[log.drink_catalog.category] : ''}
+                            {` · ${log.bottles}병`}
+                            {log.price_paid ? ` · ₩${log.price_paid.toLocaleString()}` : ''}
+                            {log.temperature != null ? ` · ${log.temperature.toFixed(0)}°C` : ''}
+                          </Text>
+                          {/* 동행자(companions)는 리스트에선 숨기고 상세 화면에서만 노출 */}
+                        </View>
+
+                        {/* 우측: 날씨 + 장소 */}
+                        <View style={styles.logRight}>
+                          {log.weather && (
+                            <Text style={styles.logWeather}>
+                              {WEATHER_ICONS[log.weather as WeatherCode] ?? ''}
+                            </Text>
+                          )}
+                          {log.location && (
+                            <Text style={styles.logLocation} numberOfLines={1}>
+                              📍 {log.location}
+                            </Text>
+                          )}
+                        </View>
+
+                        {!isEditMode && (
+                          <Icon
+                            set="fa5"
+                            name="caret-right"
+                            size={iconSize.sm}
+                            color={colors.textTertiary}
+                            style={styles.chevron}
+                          />
+                        )}
+                      </TouchableOpacity>
+                    </View>
                   );
                 })}
               </View>
@@ -433,7 +455,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xxl * 2,
   },
   emptyIcon: {
-    fontSize: 48,
+    fontSize: iconSize.xxl,
     marginBottom: spacing.md,
   },
   emptyText: {
@@ -471,8 +493,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     padding: spacing.md,
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
+    alignItems: 'flex-start',
   },
   logItemSelected: {
     backgroundColor: colors.surfaceLight,
@@ -496,30 +517,49 @@ const styles = StyleSheet.create({
   },
   checkmark: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: iconSize.xs,
     fontWeight: '700',
   },
   chevron: {
-    fontSize: 24,
-    color: colors.textTertiary,
     marginLeft: spacing.sm,
   },
-  logTimeCol: {
-    width: 48,
-    justifyContent: 'center',
+  logBlock: {
+    marginBottom: spacing.sm,
   },
-  logTime: {
-    fontSize: fontSize.sm,
+  logTimeAboveCard: {
+    fontSize: fontSize.xs,
     color: colors.textTertiary,
-    fontWeight: '500',
+    marginBottom: 4,
+    marginLeft: 2,
+  },
+  logIconCol: {
+    width: 22,
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    justifyContent: 'center',
   },
   logContentCol: {
     flex: 1,
+    marginLeft: spacing.sm,
   },
   logName: {
     fontSize: fontSize.md,
     fontWeight: '600',
     color: colors.textPrimary,
+    flexShrink: 1,
+  },
+  logRight: {
+    alignItems: 'flex-end',
+    gap: 2,
+    marginLeft: spacing.sm,
+    maxWidth: 120,
+  },
+  logWeather: {
+    fontSize: iconSize.sm,
+  },
+  logLocation: {
+    fontSize: fontSize.xs,
+    color: colors.textTertiary,
   },
   logMeta: {
     fontSize: fontSize.sm,
@@ -557,7 +597,7 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
   },
   deleteBtn: {
-    backgroundColor: '#E53935',
+    backgroundColor: colors.tone.terracotta,
     borderRadius: borderRadius.md,
     paddingVertical: spacing.md,
     alignItems: 'center',

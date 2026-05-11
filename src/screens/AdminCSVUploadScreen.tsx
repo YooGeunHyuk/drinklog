@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system/next';
-import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
+import { colors, spacing, fontSize, borderRadius, iconSize } from '../constants/theme';
 import { supabase } from '../lib/supabase';
 import { parseCatalogCsv, type CatalogRow } from '../lib/csvParser';
 import { PRESET_CATALOGS, type CatalogPreset } from '../constants/catalogPresets';
@@ -101,26 +101,42 @@ export default function AdminCSVUploadScreen({ navigation }: any) {
 
     let inserted = 0;
     let failed = 0;
-    const CHUNK = 50;
+    const CHUNK = 10; // 작은 청크로 응답 멈춤 방지
+    const TIMEOUT_MS = 15000;
+
+    const withTimeout = <T,>(p: PromiseLike<T>, ms: number): Promise<T> =>
+      Promise.race<T>([
+        Promise.resolve(p),
+        new Promise<T>((_, reject) =>
+          setTimeout(() => reject(new Error('타임아웃')), ms),
+        ),
+      ]);
 
     try {
       for (let i = 0; i < rows.length; i += CHUNK) {
         const chunk = rows.slice(i, i + CHUNK);
-        // UNIQUE (name, category, volume_ml) 이 있어 conflict 시 skip.
-        // supabase-js 에 "insert ignore" 가 없어 upsert + onConflict + ignoreDuplicates 사용.
-        const { data, error } = await supabase
-          .from('drink_catalog')
-          .upsert(chunk as any, {
-            onConflict: 'name,category,volume_ml',
-            ignoreDuplicates: true,
-          })
-          .select('id');
+        console.log(`[admin upload] chunk ${i / CHUNK + 1}/${Math.ceil(rows.length / CHUNK)} (size=${chunk.length})`);
+        try {
+          const { data, error } = await withTimeout(
+            supabase
+              .from('drink_catalog')
+              .upsert(chunk as any, {
+                onConflict: 'name,category,volume_ml',
+                ignoreDuplicates: true,
+              })
+              .select('id'),
+            TIMEOUT_MS,
+          ) as { data: { id: any }[] | null; error: any };
 
-        if (error) {
-          console.error('[admin upload] chunk error:', error);
+          if (error) {
+            console.error('[admin upload] chunk error:', error);
+            failed += chunk.length;
+          } else {
+            inserted += data?.length ?? 0;
+          }
+        } catch (chunkErr: any) {
+          console.error('[admin upload] chunk timeout/exception:', chunkErr?.message);
           failed += chunk.length;
-        } else {
-          inserted += data?.length ?? 0;
         }
       }
 
@@ -129,7 +145,9 @@ export default function AdminCSVUploadScreen({ navigation }: any) {
 
       Alert.alert(
         '완료',
-        `총 ${rows.length}건\n삽입: ${inserted}\n중복 스킵: ${skipped}\n실패: ${failed}`,
+        `총 ${rows.length}건\n삽입: ${inserted}\n중복 스킵: ${skipped}\n실패: ${failed}${
+          failed > 0 ? '\n\n실패 원인 — RLS 권한 또는 네트워크 확인 필요.' : ''
+        }`,
       );
     } catch (err: any) {
       Alert.alert('업로드 실패', err?.message ?? 'Unknown error');
@@ -351,7 +369,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   filePickIcon: {
-    fontSize: 24,
+    fontSize: iconSize.md,
     marginRight: spacing.sm,
   },
   filePickText: {

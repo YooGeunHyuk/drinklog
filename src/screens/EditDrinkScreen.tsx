@@ -14,7 +14,7 @@ import {
   Image,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
+import { colors, spacing, fontSize, borderRadius, iconSize } from '../constants/theme';
 import { supabase } from '../lib/supabase';
 import {
   DrinkLog,
@@ -23,8 +23,10 @@ import {
   MOOD_LABELS,
   MOOD_ICONS,
 } from '../types';
-import { uploadDrinkPhoto, deleteDrinkPhoto } from '../lib/storage';
+import { uploadDrinkPhoto, uploadDrinkPhotos, deleteDrinkPhoto } from '../lib/storage';
+import { getDrinkLogPhotos, buildDrinkLogPhotoFields } from '../lib/photos';
 import { WEATHER_ICONS, WEATHER_LABELS, WeatherCode } from '../lib/weather';
+import Icon from '../components/Icon';
 
 const MOODS: DrinkMood[] = [
   'alone',
@@ -61,10 +63,13 @@ export default function EditDrinkScreen({ route, navigation }: Props) {
   const [location, setLocation] = useState('');
   const [companions, setCompanions] = useState('');
   const [mood, setMood] = useState<DrinkMood | null>(null);
-  const [existingPhotoUrl, setExistingPhotoUrl] = useState<string | null>(null);
-  const [newPhotoLocalUri, setNewPhotoLocalUri] = useState<string | null>(null);
-  const [newPhotoBase64, setNewPhotoBase64] = useState<string | null>(null);
-  const [photoRemoved, setPhotoRemoved] = useState(false);
+  // 사진 — 여러 장 지원
+  // existingPhotos: DB에 이미 저장된 URL 목록
+  // newPhotos: 새로 추가한 로컬 사진 (업로드 대기)
+  // removedExistingUrls: 제거된 기존 사진 URL (저장 시 storage 정리)
+  const [existingPhotos, setExistingPhotos] = useState<string[]>([]);
+  const [newPhotos, setNewPhotos] = useState<{ uri: string; base64: string; key: string }[]>([]);
+  const [removedExistingUrls, setRemovedExistingUrls] = useState<string[]>([]);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   useEffect(() => {
@@ -88,10 +93,10 @@ export default function EditDrinkScreen({ route, navigation }: Props) {
       setLocation(l.location ?? '');
       setCompanions(l.companions ?? '');
       setMood(l.mood ?? null);
-      setExistingPhotoUrl(l.photo_url ?? null);
-      setPhotoRemoved(false);
-      setNewPhotoLocalUri(null);
-      setNewPhotoBase64(null);
+      // 사진 — photo_urls(배열) 우선, 없으면 photo_url(legacy) fallback
+      setExistingPhotos(getDrinkLogPhotos(l));
+      setNewPhotos([]);
+      setRemovedExistingUrls([]);
 
       const d = new Date(l.logged_at);
       const y = d.getFullYear();
@@ -148,28 +153,28 @@ export default function EditDrinkScreen({ route, navigation }: Props) {
     try {
       const volumeMl = log?.drink_catalog?.volume_ml;
 
-      // 사진 업로드 (새 사진이 있으면)
-      let photoUrlToSet: string | null = existingPhotoUrl;
-      if (newPhotoLocalUri && newPhotoBase64) {
+      // 사진 처리 — 새 사진들 업로드 + 제거된 기존 사진 storage 정리
+      let finalUrls: string[] = [...existingPhotos];
+      if (newPhotos.length > 0) {
         setIsUploadingPhoto(true);
         try {
-          const uploaded = await uploadDrinkPhoto(newPhotoLocalUri, newPhotoBase64);
-          // 기존 사진 있으면 삭제 (best-effort)
-          if (existingPhotoUrl) {
-            await deleteDrinkPhoto(existingPhotoUrl).catch(() => {});
-          }
-          photoUrlToSet = uploaded;
+          const uploaded = await uploadDrinkPhotos(
+            newPhotos.map((p) => ({ localUri: p.uri, base64: p.base64 })),
+          );
+          finalUrls = [...finalUrls, ...uploaded];
         } catch (upErr: any) {
-          Alert.alert('사진 업로드 실패', '사진은 저장되지 않고 나머지만 저장됩니다.');
-          photoUrlToSet = existingPhotoUrl;
+          Alert.alert('사진 업로드 실패', '일부 사진은 저장되지 않을 수 있어요.');
         } finally {
           setIsUploadingPhoto(false);
         }
-      } else if (photoRemoved && existingPhotoUrl) {
-        // 사진 제거 요청만 있고 새 업로드 없음
-        await deleteDrinkPhoto(existingPhotoUrl).catch(() => {});
-        photoUrlToSet = null;
       }
+      // 제거된 기존 사진은 storage에서도 삭제 (best-effort)
+      for (const url of removedExistingUrls) {
+        await deleteDrinkPhoto(url).catch(() => {});
+      }
+
+      // photo_url(legacy) + photo_urls(현행) 동시 업데이트로 backward compat 유지
+      const photoFields = buildDrinkLogPhotoFields(finalUrls);
 
       const { error } = await supabase
         .from('drink_log')
@@ -182,7 +187,7 @@ export default function EditDrinkScreen({ route, navigation }: Props) {
           location: location.trim() || null,
           companions: companions.trim() || null,
           mood: mood,
-          photo_url: photoUrlToSet,
+          ...photoFields,
         })
         .eq('id', logId);
 
@@ -225,15 +230,22 @@ export default function EditDrinkScreen({ route, navigation }: Props) {
               mediaTypes: ImagePicker.MediaTypeOptions.Images,
               quality: 0.7,
               base64: true,
+              allowsMultipleSelection: true,
+              selectionLimit: 0, // 0 = 무제한
+              orderedSelection: true,
             });
 
       if (result.canceled) return;
-      const asset = result.assets?.[0];
-      if (!asset?.uri || !asset.base64) return;
-
-      setNewPhotoLocalUri(asset.uri);
-      setNewPhotoBase64(asset.base64);
-      setPhotoRemoved(false);
+      const assets = result.assets ?? [];
+      const additions = assets
+        .filter((a) => a.uri && a.base64)
+        .map((a) => ({
+          uri: a.uri!,
+          base64: a.base64!,
+          key: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        }));
+      if (additions.length === 0) return;
+      setNewPhotos((prev) => [...prev, ...additions]);
     } catch (err: any) {
       Alert.alert('사진 선택 실패', err.message ?? 'Unknown error');
     }
@@ -247,15 +259,19 @@ export default function EditDrinkScreen({ route, navigation }: Props) {
     ]);
   };
 
-  const removePhoto = () => {
-    setNewPhotoLocalUri(null);
-    setNewPhotoBase64(null);
-    setPhotoRemoved(true);
+  const removeExistingPhoto = (url: string) => {
+    setExistingPhotos((prev) => prev.filter((u) => u !== url));
+    setRemovedExistingUrls((prev) => [...prev, url]);
+  };
+  const removeNewPhoto = (key: string) => {
+    setNewPhotos((prev) => prev.filter((p) => p.key !== key));
   };
 
-  // 표시용 현재 사진 URI (preview)
-  const displayedPhotoUri =
-    newPhotoLocalUri ?? (photoRemoved ? null : existingPhotoUrl);
+  // 사진 표시용 통합 리스트
+  const photoList: { uri: string; kind: 'existing' | 'new'; ref: string }[] = [
+    ...existingPhotos.map((url) => ({ uri: url, kind: 'existing' as const, ref: url })),
+    ...newPhotos.map((p) => ({ uri: p.uri, kind: 'new' as const, ref: p.key })),
+  ];
 
   const handleDelete = () => {
     Alert.alert(
@@ -311,8 +327,9 @@ export default function EditDrinkScreen({ route, navigation }: Props) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={styles.backButton}>← 뒤로</Text>
+          <TouchableOpacity style={styles.backRow} onPress={() => navigation.goBack()}>
+            <Icon name="ChevronLeft" size={iconSize.sm} color={colors.primary} />
+            <Text style={styles.backButton}>뒤로</Text>
           </TouchableOpacity>
 
           <Text style={styles.title}>기록 디테일</Text>
@@ -457,38 +474,38 @@ export default function EditDrinkScreen({ route, navigation }: Props) {
             onChangeText={setCompanions}
           />
 
-          {/* 사진 */}
-          <Text style={styles.label}>사진</Text>
-          {displayedPhotoUri ? (
-            <View style={styles.photoPreviewBox}>
-              <Image source={{ uri: displayedPhotoUri }} style={styles.photoPreview} />
-              <View style={styles.photoActions}>
+          {/* 사진 — 여러 장 */}
+          <Text style={styles.label}>사진 {photoList.length > 0 ? `(${photoList.length})` : ''}</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.photoStrip}
+          >
+            {photoList.map((p) => (
+              <View key={p.ref} style={styles.photoThumbBox}>
+                <Image source={{ uri: p.uri }} style={styles.photoThumb} />
                 <TouchableOpacity
-                  style={styles.photoActionBtn}
-                  onPress={presentPhotoPicker}
+                  style={styles.photoThumbRemove}
+                  onPress={() =>
+                    p.kind === 'existing'
+                      ? removeExistingPhoto(p.ref)
+                      : removeNewPhoto(p.ref)
+                  }
+                  hitSlop={{ top: 6, right: 6, bottom: 6, left: 6 }}
                 >
-                  <Text style={styles.photoActionText}>🔄 변경</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.photoActionBtn, styles.photoRemoveBtn]}
-                  onPress={removePhoto}
-                >
-                  <Text style={[styles.photoActionText, { color: colors.error }]}>
-                    🗑 제거
-                  </Text>
+                  <Icon name="X" size={iconSize.xs} color={colors.textInverse} strokeWidth={2.5} />
                 </TouchableOpacity>
               </View>
-            </View>
-          ) : (
+            ))}
             <TouchableOpacity
-              style={styles.photoAddBtn}
+              style={styles.photoAddTile}
               onPress={presentPhotoPicker}
               activeOpacity={0.7}
             >
-              <Text style={styles.photoAddIcon}>📷</Text>
-              <Text style={styles.photoAddText}>사진 추가</Text>
+              <Icon name="Plus" size={iconSize.md} color={colors.textSecondary} />
+              <Text style={styles.photoAddTileText}>추가</Text>
             </TouchableOpacity>
-          )}
+          </ScrollView>
 
           {/* 메모 */}
           <Text style={styles.label}>메모</Text>
@@ -551,10 +568,16 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     paddingBottom: spacing.xxl,
   },
+  backRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    marginBottom: spacing.md,
+    alignSelf: 'flex-start',
+  },
   backButton: {
     fontSize: fontSize.md,
     color: colors.primary,
-    marginBottom: spacing.md,
   },
   title: {
     fontSize: fontSize.xxl,
@@ -619,7 +642,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   weatherIcon: {
-    fontSize: 32,
+    fontSize: iconSize.xl,
   },
   weatherLabel: {
     fontSize: fontSize.md,
@@ -689,7 +712,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceLight,
   },
   moodIcon: {
-    fontSize: 16,
+    fontSize: iconSize.xs,
     marginRight: spacing.xs,
   },
   moodLabel: {
@@ -700,56 +723,55 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '600',
   },
-  // 사진
-  photoAddBtn: {
-    backgroundColor: colors.surface,
+  // 사진 — 다중 첨부 (가로 스크롤 갤러리)
+  photoStrip: {
+    gap: spacing.sm,
+    paddingVertical: 4,
+  },
+  photoThumbBox: {
+    width: 100,
+    height: 100,
     borderRadius: borderRadius.md,
-    paddingVertical: spacing.lg,
+    overflow: 'visible',
+    position: 'relative',
+  },
+  photoThumb: {
+    width: 100,
+    height: 100,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.surfaceLight,
+  },
+  photoThumbRemove: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.tone.terracotta,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  photoAddTile: {
+    width: 100,
+    height: 100,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.surface,
     borderWidth: 1.5,
     borderColor: colors.border,
     borderStyle: 'dashed',
-  },
-  photoAddIcon: {
-    fontSize: 32,
-    marginBottom: spacing.xs,
-  },
-  photoAddText: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-    fontWeight: '500',
-  },
-  photoPreviewBox: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
-    overflow: 'hidden',
-  },
-  photoPreview: {
-    width: '100%',
-    height: 240,
-    resizeMode: 'cover',
-  },
-  photoActions: {
-    flexDirection: 'row',
-    padding: spacing.sm,
-    gap: spacing.sm,
-  },
-  photoActionBtn: {
-    flex: 1,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.surfaceLight,
-    borderRadius: borderRadius.sm,
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
   },
-  photoRemoveBtn: {
-    borderWidth: 1,
-    borderColor: colors.error,
-    backgroundColor: 'transparent',
-  },
-  photoActionText: {
-    fontSize: fontSize.sm,
-    color: colors.textPrimary,
+  photoAddTileText: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
 });

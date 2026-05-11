@@ -11,7 +11,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
+import { colors, spacing, fontSize, borderRadius, iconSize } from '../constants/theme';
 import {
   DrinkCategory,
   CATEGORY_LABELS,
@@ -19,22 +19,14 @@ import {
 } from '../types';
 import { supabase } from '../lib/supabase';
 import { getCurrentWeather } from '../lib/weather';
+import Icon from '../components/Icon';
+import { CATEGORY_ICONS } from '../constants/categoryIcons';
 
 type AddMode = 'select' | 'search' | 'manual';
 
 const CATEGORIES: DrinkCategory[] = [
   'soju', 'beer', 'makgeolli', 'wine', 'whiskey', 'spirits', 'etc',
 ];
-
-const CATEGORY_ICONS: Record<DrinkCategory, string> = {
-  soju: '🍶',
-  beer: '🍺',
-  makgeolli: '🥛',
-  wine: '🍷',
-  whiskey: '🥃',
-  spirits: '🍸',
-  etc: '🍹',
-};
 
 export default function AddDrinkScreen({ route, navigation }: any) {
   const [mode, setMode] = useState<AddMode>('select');
@@ -296,7 +288,7 @@ export default function AddDrinkScreen({ route, navigation }: any) {
             onPress={() => setMode('search')}
             activeOpacity={0.7}
           >
-            <Text style={styles.modeIcon}>🔍</Text>
+            <Text style={[styles.modeIcon, styles.modeEmoji]}>🔍</Text>
             <View style={styles.modeTextContainer}>
               <Text style={styles.modeTitle}>검색으로 추가</Text>
               <Text style={styles.modeDesc}>술 이름으로 검색해서 추가</Text>
@@ -308,7 +300,7 @@ export default function AddDrinkScreen({ route, navigation }: any) {
             onPress={() => setMode('manual')}
             activeOpacity={0.7}
           >
-            <Text style={styles.modeIcon}>✏️</Text>
+            <Text style={[styles.modeIcon, styles.modeEmoji]}>✏️</Text>
             <View style={styles.modeTextContainer}>
               <Text style={styles.modeTitle}>직접 입력</Text>
               <Text style={styles.modeDesc}>주종, 이름, 도수 등을 직접 입력</Text>
@@ -320,7 +312,7 @@ export default function AddDrinkScreen({ route, navigation }: any) {
             onPress={() => navigation.navigate('LabelScan')}
             activeOpacity={0.7}
           >
-            <Text style={styles.modeIcon}>📷</Text>
+            <Icon name="Camera" size={iconSize.lg} color={colors.primary} style={styles.modeIcon} />
             <View style={styles.modeTextContainer}>
               <Text style={styles.modeTitle}>라벨 촬영 인식</Text>
               <Text style={styles.modeDesc}>
@@ -342,8 +334,9 @@ export default function AddDrinkScreen({ route, navigation }: any) {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <ScrollView contentContainerStyle={styles.scrollContent}>
-            <TouchableOpacity onPress={() => setMode('select')}>
-              <Text style={styles.backButton}>← 뒤로</Text>
+            <TouchableOpacity style={styles.backRow} onPress={() => setMode('select')}>
+              <Icon name="ChevronLeft" size={iconSize.sm} color={colors.primary} />
+              <Text style={styles.backButton}>뒤로</Text>
             </TouchableOpacity>
             <Text style={styles.title}>검색으로 추가</Text>
 
@@ -390,7 +383,7 @@ export default function AddDrinkScreen({ route, navigation }: any) {
                         {item.volume_ml ? ` · ${item.volume_ml}ml` : ''}
                       </Text>
                     </View>
-                    <Text style={styles.resultArrow}>＋</Text>
+                    <Icon name="Plus" size={iconSize.md} color={colors.primary} />
                   </TouchableOpacity>
                 ))}
               </View>
@@ -479,15 +472,19 @@ export default function AddDrinkScreen({ route, navigation }: any) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          <TouchableOpacity onPress={() => setMode('select')}>
-            <Text style={styles.backButton}>← 뒤로</Text>
+          <TouchableOpacity style={styles.backRow} onPress={() => setMode('select')}>
+            <Icon name="ChevronLeft" size={iconSize.sm} color={colors.primary} />
+            <Text style={styles.backButton}>뒤로</Text>
           </TouchableOpacity>
           <Text style={styles.title}>직접 입력</Text>
 
           {/* 스캔 후 진입한 경우 바코드 배너 */}
           {barcode && (
             <View style={styles.barcodeBanner}>
-              <Text style={styles.barcodeBannerLabel}>📷 스캔된 바코드</Text>
+              <View style={styles.barcodeBannerLabelRow}>
+                <Icon name="Camera" size={iconSize.xs} color={colors.textSecondary} />
+                <Text style={styles.barcodeBannerLabel}>스캔된 바코드</Text>
+              </View>
               <Text style={styles.barcodeBannerCode}>{barcode}</Text>
               <Text style={styles.barcodeBannerHint}>
                 저장 시 이 바코드가 카탈로그에 등록되어 다음부터는 스캔만으로 기록됩니다.
@@ -507,9 +504,13 @@ export default function AddDrinkScreen({ route, navigation }: any) {
                 ]}
                 onPress={() => setSelectedCategory(cat)}
               >
-                <Text style={styles.categoryIcon}>
-                  {CATEGORY_ICONS[cat]}
-                </Text>
+                <Icon
+                  set={CATEGORY_ICONS[cat].set}
+                  name={CATEGORY_ICONS[cat].name}
+                  size={iconSize.md}
+                  color={selectedCategory === cat ? colors.primary : colors.textSecondary}
+                  style={styles.categoryIcon}
+                />
                 <Text
                   style={[
                     styles.categoryLabel,
@@ -649,10 +650,16 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: spacing.xl,
   },
+  backRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    marginBottom: spacing.md,
+    alignSelf: 'flex-start',
+  },
   backButton: {
     fontSize: fontSize.md,
     color: colors.primary,
-    marginBottom: spacing.md,
   },
   // 모드 선택 카드
   modeCard: {
@@ -667,8 +674,13 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   modeIcon: {
-    fontSize: 32,
     marginRight: spacing.md,
+    width: iconSize.lg,
+    textAlign: 'center',
+  },
+  modeEmoji: {
+    fontSize: iconSize.lg,
+    lineHeight: iconSize.lg + 4,
   },
   modeTextContainer: {
     flex: 1,
@@ -759,7 +771,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceLight,
   },
   categoryIcon: {
-    fontSize: 18,
     marginRight: spacing.xs,
   },
   categoryLabel: {
@@ -806,7 +817,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   resultArrow: {
-    fontSize: 24,
+    fontSize: iconSize.md,
     color: colors.primary,
     marginLeft: spacing.md,
   },
@@ -815,7 +826,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xxl,
   },
   emptyIcon: {
-    fontSize: 48,
+    fontSize: iconSize.xxl,
     marginBottom: spacing.md,
   },
   emptyText: {
@@ -837,11 +848,16 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3,
     borderLeftColor: colors.primary,
   },
+  barcodeBannerLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 4,
+  },
   barcodeBannerLabel: {
     fontSize: fontSize.xs,
-    color: colors.primary,
+    color: colors.textSecondary,
     fontWeight: '600',
-    marginBottom: 4,
   },
   barcodeBannerCode: {
     fontSize: fontSize.md,
@@ -866,7 +882,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   ctaPrimaryIcon: {
-    fontSize: 28,
+    fontSize: iconSize.lg,
     marginRight: spacing.md,
   },
   ctaPrimaryText: {
@@ -890,7 +906,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   ctaSecondaryIcon: {
-    fontSize: 22,
+    fontSize: iconSize.md,
     marginRight: spacing.md,
   },
   ctaSecondaryText: {

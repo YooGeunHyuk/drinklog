@@ -14,9 +14,11 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
+import { colors, spacing, fontSize, borderRadius, iconSize } from '../constants/theme';
 import { supabase } from '../lib/supabase';
 import { DrinkCategory, CATEGORY_LABELS } from '../types';
+import Icon from '../components/Icon';
+import { CATEGORY_ICONS } from '../constants/categoryIcons';
 
 const CATEGORIES: DrinkCategory[] = [
   'soju',
@@ -27,16 +29,6 @@ const CATEGORIES: DrinkCategory[] = [
   'spirits',
   'etc',
 ];
-
-const CATEGORY_ICONS: Record<DrinkCategory, string> = {
-  soju: '🍶',
-  beer: '🍺',
-  makgeolli: '🥛',
-  wine: '🍷',
-  whiskey: '🥃',
-  spirits: '🍸',
-  etc: '🍹',
-};
 
 export default function RequestDrinkScreen({ route, navigation }: any) {
   const prefillName: string = route?.params?.prefillName ?? '';
@@ -141,7 +133,13 @@ export default function RequestDrinkScreen({ route, navigation }: any) {
                 ]}
                 onPress={() => setCategory(category === cat ? null : cat)}
               >
-                <Text style={styles.categoryIcon}>{CATEGORY_ICONS[cat]}</Text>
+                <Icon
+                  set={CATEGORY_ICONS[cat].set}
+                  name={CATEGORY_ICONS[cat].name}
+                  size={iconSize.md}
+                  color={category === cat ? colors.primary : colors.textSecondary}
+                  style={styles.categoryIcon}
+                />
                 <Text
                   style={[
                     styles.categoryLabel,
@@ -302,7 +300,7 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
     backgroundColor: colors.surfaceLight,
   },
-  categoryIcon: { fontSize: 18, marginRight: spacing.xs },
+  categoryIcon: { marginRight: spacing.xs },
   categoryLabel: { fontSize: fontSize.sm, color: colors.textSecondary },
   categoryLabelActive: { color: colors.primary, fontWeight: '600' },
   submitBtn: {

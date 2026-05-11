@@ -11,10 +11,11 @@ import {
   ScrollView,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
+import { colors, spacing, fontSize, borderRadius, iconSize } from '../constants/theme';
 import { supabase } from '../lib/supabase';
 import { getCurrentWeather } from '../lib/weather';
 import { DrinkCatalog, DrinkCategory, CATEGORY_LABELS } from '../types';
+import Icon from '../components/Icon';
 
 interface Props {
   navigation: any;
@@ -282,8 +283,9 @@ export default function LabelScanScreen({ navigation }: Props) {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backButton}>← 닫기</Text>
+        <TouchableOpacity style={styles.backRow} onPress={() => navigation.goBack()}>
+          <Icon name="ChevronLeft" size={iconSize.sm} color={colors.primary} />
+          <Text style={styles.backButton}>닫기</Text>
         </TouchableOpacity>
         <Text style={styles.title}>라벨 촬영 인식</Text>
         <Text style={styles.subtitle}>
@@ -298,7 +300,7 @@ export default function LabelScanScreen({ navigation }: Props) {
               onPress={() => pickImage('camera')}
               activeOpacity={0.7}
             >
-              <Text style={styles.actionIcon}>📷</Text>
+              <Icon name="Camera" size={iconSize.lg} color={colors.primary} style={styles.actionIcon} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.actionTitle}>사진 찍기</Text>
                 <Text style={styles.actionDesc}>
@@ -312,7 +314,7 @@ export default function LabelScanScreen({ navigation }: Props) {
               onPress={() => pickImage('library')}
               activeOpacity={0.7}
             >
-              <Text style={styles.actionIcon}>🖼️</Text>
+              <Icon name="ImageIcon" size={iconSize.lg} color={colors.primary} style={styles.actionIcon} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.actionTitle}>앨범에서 선택</Text>
                 <Text style={styles.actionDesc}>
@@ -576,10 +578,16 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     paddingBottom: spacing.xxl,
   },
+  backRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    marginBottom: spacing.md,
+    alignSelf: 'flex-start',
+  },
   backButton: {
     fontSize: fontSize.md,
     color: colors.primary,
-    marginBottom: spacing.md,
   },
   title: {
     fontSize: fontSize.xxl,
@@ -603,7 +611,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   actionIcon: {
-    fontSize: 32,
     marginRight: spacing.md,
   },
   actionTitle: {
@@ -806,7 +813,7 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
   emptyIcon: {
-    fontSize: 48,
+    fontSize: iconSize.xxl,
     textAlign: 'center',
     marginBottom: spacing.md,
   },

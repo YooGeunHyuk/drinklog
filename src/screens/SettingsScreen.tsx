@@ -10,9 +10,14 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from 'react-native';
 import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
 import { supabase } from '../lib/supabase';
+import {
+  TERMS_OF_SERVICE,
+  PRIVACY_POLICY,
+} from '../constants/termsContent';
 
 interface Props {
   navigation: any;
@@ -23,6 +28,8 @@ export default function SettingsScreen({ navigation }: Props) {
   const [phone, setPhone] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [openLegal, setOpenLegal] = useState<'terms' | 'privacy' | null>(null);
 
   useEffect(() => {
     loadProfile();
@@ -101,6 +108,38 @@ export default function SettingsScreen({ navigation }: Props) {
     ]);
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      '회원 탈퇴',
+      '모든 기록(드링크 로그·사진·프로필)이 영구 삭제됩니다. 복구할 수 없습니다. 정말 탈퇴하시겠어요?',
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '탈퇴',
+          style: 'destructive',
+          onPress: async () => {
+            setIsDeleting(true);
+            try {
+              const { error } = await supabase.functions.invoke(
+                'delete-account',
+                { method: 'POST' },
+              );
+              if (error) throw error;
+              // Edge Function이 auth.users를 지웠으므로 세션도 무효화됨
+              await supabase.auth.signOut();
+            } catch (err: any) {
+              Alert.alert(
+                '탈퇴 실패',
+                err.message ?? '탈퇴 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.',
+              );
+              setIsDeleting(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
@@ -151,21 +190,77 @@ export default function SettingsScreen({ navigation }: Props) {
             </>
           ) : null}
 
+          {/* 정보 섹션 */}
+          <Text style={styles.sectionTitle}>정보</Text>
+          <View style={styles.card}>
+            <TouchableOpacity
+              style={styles.linkRow}
+              onPress={() => setOpenLegal('terms')}
+            >
+              <Text style={styles.linkText}>이용약관</Text>
+              <Text style={styles.linkChevron}>›</Text>
+            </TouchableOpacity>
+            <View style={styles.rowDivider} />
+            <TouchableOpacity
+              style={styles.linkRow}
+              onPress={() => setOpenLegal('privacy')}
+            >
+              <Text style={styles.linkText}>개인정보처리방침</Text>
+              <Text style={styles.linkChevron}>›</Text>
+            </TouchableOpacity>
+          </View>
+
           {/* 계정 섹션 */}
           <Text style={styles.sectionTitle}>계정</Text>
           <View style={styles.card}>
             <TouchableOpacity
               style={styles.dangerRow}
               onPress={handleLogout}
-              disabled={isLoggingOut}
+              disabled={isLoggingOut || isDeleting}
             >
               <Text style={styles.dangerText}>
                 {isLoggingOut ? '로그아웃 중...' : '로그아웃'}
               </Text>
             </TouchableOpacity>
+            <View style={styles.rowDivider} />
+            <TouchableOpacity
+              style={styles.dangerRow}
+              onPress={handleDeleteAccount}
+              disabled={isLoggingOut || isDeleting}
+            >
+              <Text style={styles.deleteAccountText}>
+                {isDeleting ? '탈퇴 처리 중...' : '회원 탈퇴'}
+              </Text>
+            </TouchableOpacity>
           </View>
+          <Text style={styles.deleteAccountHint}>
+            모든 기록·사진·프로필이 영구 삭제됩니다. 복구할 수 없습니다.
+          </Text>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={openLegal !== null}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setOpenLegal(null)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>
+              {openLegal === 'terms' ? '이용약관' : '개인정보처리방침'}
+            </Text>
+            <TouchableOpacity onPress={() => setOpenLegal(null)}>
+              <Text style={styles.modalClose}>닫기</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={styles.modalBody}>
+            <Text style={styles.modalText}>
+              {openLegal === 'terms' ? TERMS_OF_SERVICE : PRIVACY_POLICY}
+            </Text>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -262,7 +357,70 @@ const styles = StyleSheet.create({
   },
   dangerText: {
     fontSize: fontSize.md,
-    color: '#E53935',
+    color: colors.tone.terracotta,
     fontWeight: '500',
+  },
+  rowDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.md,
+  },
+  deleteAccountText: {
+    fontSize: fontSize.md,
+    color: colors.tone.terracotta,
+    fontWeight: '600',
+  },
+  deleteAccountHint: {
+    fontSize: fontSize.xs,
+    color: colors.textTertiary,
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    lineHeight: fontSize.xs * 1.4,
+  },
+  linkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+  },
+  linkText: {
+    fontSize: fontSize.md,
+    color: colors.textPrimary,
+  },
+  linkChevron: {
+    fontSize: fontSize.md,
+    color: colors.textTertiary,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  modalTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  modalClose: {
+    fontSize: fontSize.md,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  modalBody: {
+    padding: spacing.lg,
+  },
+  modalText: {
+    fontSize: fontSize.md,
+    color: colors.textSecondary,
+    lineHeight: fontSize.md * 1.6,
   },
 });

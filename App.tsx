@@ -5,13 +5,22 @@ import { NavigationContainer } from '@react-navigation/native';
 import RootNavigator from './src/navigation/RootNavigator';
 import LoginScreen from './src/screens/LoginScreen';
 import ProfileSetupScreen from './src/screens/ProfileSetupScreen';
+import TermsAgreementScreen from './src/screens/TermsAgreementScreen';
 import { supabase } from './src/lib/supabase';
 import { colors } from './src/constants/theme';
+import { useAppFonts } from './src/theme/fonts';
 
-type AppState = 'loading' | 'login' | 'profile_setup' | 'main';
+type AppState =
+  | 'loading'
+  | 'login'
+  | 'terms_agreement'
+  | 'profile_setup'
+  | 'main';
 
 export default function App() {
   const [appState, setAppState] = useState<AppState>('loading');
+  // Pretendard 폰트 로드 (파일이 비어 있으면 즉시 true 반환 → 시스템 폰트 폴백)
+  const [fontsLoaded] = useAppFonts();
 
   // 앱 시작 시 세션 확인
   useEffect(() => {
@@ -41,20 +50,26 @@ export default function App() {
   };
 
   const checkProfile = async (userId: string) => {
-    // 프로필이 완성되어 있는지 확인 (닉네임이 있으면 완료된 것으로 간주)
+    // 진입 게이트:
+    //   1. 약관 동의 (terms_agreed_at + privacy_agreed_at) — 법적 필수
+    //   2. 프로필 완성 (nickname + birth_year) — 만 19세 검증 위해
     const { data } = await supabase
       .from('users')
-      .select('nickname')
+      .select('nickname, birth_year, terms_agreed_at, privacy_agreed_at')
       .eq('id', userId)
       .single();
-    if (data && data.nickname) {
-      setAppState('main');
-    } else {
-      setAppState('profile_setup');
+    if (!data?.terms_agreed_at || !data?.privacy_agreed_at) {
+      setAppState('terms_agreement');
+      return;
     }
+    if (!data?.nickname || !data?.birth_year) {
+      setAppState('profile_setup');
+      return;
+    }
+    setAppState('main');
   };
 
-  if (appState === 'loading') {
+  if (appState === 'loading' || !fontsLoaded) {
     return (
       <View
         style={{
@@ -74,7 +89,12 @@ export default function App() {
     <>
       <StatusBar style="light" />
       {appState === 'login' && (
-        <LoginScreen onLogin={() => setAppState('profile_setup')} />
+        // 로그인 직후엔 loading으로 두고 onAuthStateChange의 checkProfile이
+        // 약관/프로필/메인 중 어디로 보낼지 결정. 기존 user의 화면 깜빡임 방지.
+        <LoginScreen onLogin={() => setAppState('loading')} />
+      )}
+      {appState === 'terms_agreement' && (
+        <TermsAgreementScreen onComplete={() => setAppState('profile_setup')} />
       )}
       {appState === 'profile_setup' && (
         <ProfileSetupScreen onComplete={() => setAppState('main')} />

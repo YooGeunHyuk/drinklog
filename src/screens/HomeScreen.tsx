@@ -5,24 +5,28 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   RefreshControl,
   Alert,
-  Image,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
+import { colors, spacing, fontSize, borderRadius, iconSize } from '../constants/theme';
 import { supabase } from '../lib/supabase';
 import { DrinkLog, CATEGORY_LABELS, MOOD_ICONS, DrinkCategory } from '../types';
 import { isCurrentUserAdmin } from '../lib/admin';
 import {
-  getCurrentBadge,
-  getNextBadge,
+  getLevel,
+  getNextLevel,
   getCategoryProgress,
   computeJudoScore,
+  computeStreakBonus,
+  countUniqueDrinks,
 } from '../constants/milestones';
 import { WEATHER_ICONS, WeatherCode } from '../lib/weather';
 import { topCategory } from '../lib/patterns';
+import Icon from '../components/Icon';
+import { getCategoryIcon } from '../constants/categoryIcons';
+import { ErrorBanner } from '../components/ErrorBanner';
 
 export default function HomeScreen({ navigation }: any) {
   const [nickname, setNickname] = useState<string>('');
@@ -31,11 +35,12 @@ export default function HomeScreen({ navigation }: any) {
     cost: 0,
     days: 0,
   });
+  const [monthStats, setMonthStats] = useState({
+    bottles: 0,
+    cost: 0,
+    days: 0,
+  });
   const [streak, setStreak] = useState(0); // 연속 음주일 (오늘 기준 역산)
-  const [vsLastWeek, setVsLastWeek] = useState<{
-    bottles: number | null;
-    cost: number | null;
-  }>({ bottles: null, cost: null });
   const [totalLifetimeMl, setTotalLifetimeMl] = useState(0);
   const [judoScore, setJudoScore] = useState(0);
   const [mainCategory, setMainCategory] = useState<{
@@ -45,6 +50,7 @@ export default function HomeScreen({ navigation }: any) {
   const [recentLogs, setRecentLogs] = useState<DrinkLog[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // 관리자 뱃지 — 한 번만 체크
   React.useEffect(() => {
@@ -69,6 +75,7 @@ export default function HomeScreen({ navigation }: any) {
 
   const loadData = useCallback(async () => {
     try {
+      setLoadError(null);
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -91,36 +98,32 @@ export default function HomeScreen({ navigation }: any) {
       weekStart.setDate(now.getDate() - diff);
       weekStart.setHours(0, 0, 0, 0);
 
-      const lastWeekStart = new Date(weekStart);
-      lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+      // 이번 달 시작일 (1일 00:00)
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
 
-      // ① 이번 주 기록
-      const { data: logs } = await supabase
+      // ① 이번 달 기록 (주 단위는 월 단위 안에 포함되므로 함께 처리)
+      const { data: monthLogs } = await supabase
         .from('drink_log')
         .select('logged_at, bottles, price_paid, drink_catalog(*)')
         .eq('user_id', user.id)
-        .gte('logged_at', weekStart.toISOString())
+        .gte('logged_at', monthStart.toISOString())
         .order('logged_at', { ascending: false });
 
-      const thisBottles = (logs ?? []).reduce((s, l) => s + (l.bottles || 0), 0);
-      const thisCost = (logs ?? []).reduce((s, l) => s + (l.price_paid || 0), 0);
-      const uniqueDays = new Set((logs ?? []).map((l) => new Date(l.logged_at).toDateString()));
-      setWeekStats({ bottles: thisBottles, cost: thisCost, days: uniqueDays.size });
+      const list = monthLogs ?? [];
 
-      // ② 지난주 기록 (증감 계산)
-      const { data: lastWeekLogs } = await supabase
-        .from('drink_log')
-        .select('bottles, price_paid')
-        .eq('user_id', user.id)
-        .gte('logged_at', lastWeekStart.toISOString())
-        .lt('logged_at', weekStart.toISOString());
+      // 이번 달 집계
+      const mBottles = list.reduce((s, l) => s + (l.bottles || 0), 0);
+      const mCost = list.reduce((s, l) => s + (l.price_paid || 0), 0);
+      const mDays = new Set(list.map((l) => new Date(l.logged_at).toDateString())).size;
+      setMonthStats({ bottles: mBottles, cost: mCost, days: mDays });
 
-      const lwBottles = (lastWeekLogs ?? []).reduce((s, l) => s + (l.bottles || 0), 0);
-      const lwCost = (lastWeekLogs ?? []).reduce((s, l) => s + (l.price_paid || 0), 0);
-      setVsLastWeek({
-        bottles: lwBottles === 0 ? null : thisBottles - lwBottles,
-        cost: lwCost === 0 ? null : thisCost - lwCost,
-      });
+      // 이번 주 집계 (월 데이터에서 필터)
+      const weekStartMs = weekStart.getTime();
+      const weekList = list.filter((l) => new Date(l.logged_at).getTime() >= weekStartMs);
+      const wBottles = weekList.reduce((s, l) => s + (l.bottles || 0), 0);
+      const wCost = weekList.reduce((s, l) => s + (l.price_paid || 0), 0);
+      const wDays = new Set(weekList.map((l) => new Date(l.logged_at).toDateString())).size;
+      setWeekStats({ bottles: wBottles, cost: wCost, days: wDays });
 
       // ③ 전체 기록 (뱃지 + 연속 음주일 + 메인 주종 — 한 번만 쿼리)
       const { data: allLogs } = await supabase
@@ -137,13 +140,15 @@ export default function HomeScreen({ navigation }: any) {
         }, 0);
         setTotalLifetimeMl(total);
 
-        // 주도 점수 = ml + 술자리 수 × 1000 (하루 단위 = 한 술자리)
+        // 주도 점수 = ml + 술자리 수 × 1000 + 연속 음주 보너스
         const sessionKeys = new Set<string>();
         allLogs.forEach((l: any) => {
           const d = new Date(l.logged_at);
           sessionKeys.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
         });
-        setJudoScore(computeJudoScore(total, sessionKeys.size));
+        const streakBonus = computeStreakBonus(allLogs as unknown as DrinkLog[]);
+        const unique = countUniqueDrinks(allLogs as unknown as DrinkLog[]);
+        setJudoScore(computeJudoScore(total, sessionKeys.size, streakBonus, unique));
 
         // 메인 주종 (가장 많이 마신 카테고리 누적 ml)
         const catMl: Partial<Record<DrinkCategory, number>> = {};
@@ -198,6 +203,7 @@ export default function HomeScreen({ navigation }: any) {
       setRecentLogs((recent as DrinkLog[]) ?? []);
     } catch (err: any) {
       console.error('홈 데이터 로드 실패:', err.message);
+      setLoadError(err?.message ?? '알 수 없는 오류가 발생했어요.');
     }
   }, []);
 
@@ -224,9 +230,9 @@ export default function HomeScreen({ navigation }: any) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 }]}
+        contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -235,6 +241,11 @@ export default function HomeScreen({ navigation }: any) {
           />
         }
       >
+        <ErrorBanner
+          error={loadError}
+          onRetry={loadData}
+          onDismiss={() => setLoadError(null)}
+        />
         {/* 헤더 */}
         <View style={styles.header}>
           <View style={styles.headerRow}>
@@ -245,111 +256,96 @@ export default function HomeScreen({ navigation }: any) {
               activeOpacity={1}
             >
               <Text style={styles.nicknameOf}>
-                <Text style={{ color: getCurrentBadge(judoScore).textColor }}>{nickname || '나'}</Text>
+                <Text style={{ color: getLevel(judoScore).textColor }}>{nickname || '나'}</Text>
                 <Text style={{ color: colors.textSecondary, fontSize: fontSize.sm }}>의</Text>
               </Text>
               <Text style={styles.appName}>酒路{isAdmin ? ' 🛠' : ''}</Text>
             </TouchableOpacity>
 
-            {/* 우: 뱃지 박스 + 누적량 */}
+            {/* 우: 프로필 버튼 + 레벨 박스 + 누적량 */}
             {(() => {
-              const badge = getCurrentBadge(judoScore);
+              const lvl = getLevel(judoScore);
               const totalLabel = totalLifetimeMl >= 1000
                 ? `${(totalLifetimeMl / 1000).toFixed(1)}L`
                 : `${Math.round(totalLifetimeMl)}ml`;
               return (
-                <TouchableOpacity
-                  style={styles.badgeBlock}
-                  onPress={() => navigation.getParent()?.navigate('Settings')}
-                  activeOpacity={0.8}
-                >
-                  <View style={[styles.badgeBox, { backgroundColor: badge.color }]}>
-                    <Text style={styles.badgePillEmoji}>{badge.emoji}</Text>
-                    <Text style={[styles.badgePillTitle, { color: badge.textColor }]}>
-                      {badge.title}
+                <View style={styles.badgeBlock}>
+                  <TouchableOpacity
+                    style={styles.profileBtn}
+                    onPress={() => navigation.getParent()?.navigate('Settings')}
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                  >
+                    <Icon name="UserCog" size={iconSize.md} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                  <Text style={styles.badgeTotalMl}>누적 {totalLabel}</Text>
+                  <View style={[styles.badgeBox, { backgroundColor: lvl.color }]}>
+                    <Text style={styles.badgePillEmoji}>{lvl.emoji}</Text>
+                    <Text style={[styles.badgePillTitle, { color: lvl.textColor }]}>
+                      Lv {lvl.rank} · {lvl.title}
                     </Text>
                   </View>
-                  <Text style={styles.badgeTotalMl}>누적 {totalLabel}</Text>
-                </TouchableOpacity>
+                </View>
               );
             })()}
           </View>
         </View>
 
-        {/* 이번 주 요약 카드 */}
+        {/* 음주 요약 카드 — 이번 달 / 이번 주 */}
         <View style={styles.summaryCard}>
-          <Text style={styles.summaryTitle}>이번 주 요약</Text>
-          {/* 1행: 병 수 / 비용 / 음주일 */}
-          <View style={styles.summaryRow}>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryValue}>
-                {weekStats.bottles.toFixed(1).replace(/\.0$/, '')}
-              </Text>
-              <Text style={styles.summaryLabel}>총 병 수</Text>
-            </View>
-            <View style={styles.summaryDivider} />
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryValue}>
-                ₩{weekStats.cost.toLocaleString()}
-              </Text>
-              <Text style={styles.summaryLabel}>총 비용</Text>
-            </View>
-            <View style={styles.summaryDivider} />
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryValue}>{weekStats.days}일</Text>
-              <Text style={styles.summaryLabel}>음주 일수</Text>
+          <View style={styles.summaryHeader}>
+            <Text style={styles.summaryTitle}>음주 요약</Text>
+            <View style={styles.streakChip}>
+              <Text style={styles.streakChipFlame}>{streak >= 3 ? '🔥' : '💧'}</Text>
+              <Text style={styles.streakChipText}>연속 {streak}일</Text>
             </View>
           </View>
 
-          {/* 구분선 */}
-          <View style={styles.summaryHDivider} />
-
-          {/* 2행: 연속 음주일 / 지난주 대비 */}
+          {/* 이번 달 행 */}
+          <Text style={styles.summarySubTitle}>이번 달 (현재까지)</Text>
           <View style={styles.summaryRow}>
             <View style={styles.summaryItem}>
-              <View style={styles.streakRow}>
-                <Text style={styles.summaryValue}>{streak}</Text>
-                <Text style={styles.streakFlame}>{streak >= 3 ? '🔥' : '💧'}</Text>
-              </View>
-              <Text style={styles.summaryLabel}>연속 음주일</Text>
+              <Text style={styles.summaryValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
+                {monthStats.bottles.toFixed(1).replace(/\.0$/, '')}
+              </Text>
+              <Text style={styles.summaryLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>총 병 수</Text>
             </View>
             <View style={styles.summaryDivider} />
             <View style={styles.summaryItem}>
-              {vsLastWeek.bottles === null ? (
-                <>
-                  <Text style={styles.summaryValue}>—</Text>
-                  <Text style={styles.summaryLabel}>지난주 대비 병</Text>
-                </>
-              ) : (
-                <>
-                  <Text style={[
-                    styles.summaryValue,
-                    vsLastWeek.bottles > 0 ? styles.increaseText : vsLastWeek.bottles < 0 ? styles.decreaseText : null,
-                  ]}>
-                    {vsLastWeek.bottles > 0 ? '+' : ''}{vsLastWeek.bottles.toFixed(1).replace(/\.0$/, '')}
-                  </Text>
-                  <Text style={styles.summaryLabel}>지난주 대비 병</Text>
-                </>
-              )}
+              <Text style={[styles.summaryValue, styles.summaryValueCost]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
+                {monthStats.cost.toLocaleString()}
+              </Text>
+              <Text style={styles.summaryLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>총 비용 (원)</Text>
             </View>
             <View style={styles.summaryDivider} />
             <View style={styles.summaryItem}>
-              {vsLastWeek.cost === null ? (
-                <>
-                  <Text style={styles.summaryValue}>—</Text>
-                  <Text style={styles.summaryLabel}>지난주 대비 비용</Text>
-                </>
-              ) : (
-                <>
-                  <Text style={[
-                    styles.summaryValue,
-                    vsLastWeek.cost > 0 ? styles.increaseText : vsLastWeek.cost < 0 ? styles.decreaseText : null,
-                  ]}>
-                    {vsLastWeek.cost > 0 ? '+' : ''}₩{Math.abs(vsLastWeek.cost).toLocaleString()}{vsLastWeek.cost < 0 ? ' ↓' : vsLastWeek.cost > 0 ? ' ↑' : ''}
-                  </Text>
-                  <Text style={styles.summaryLabel}>지난주 대비 비용</Text>
-                </>
-              )}
+              <Text style={styles.summaryValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>{monthStats.days}일</Text>
+              <Text style={styles.summaryLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>음주 일수</Text>
+            </View>
+          </View>
+
+          <View style={styles.summaryHDivider} />
+
+          {/* 이번 주 행 */}
+          <Text style={styles.summarySubTitle}>이번 주</Text>
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
+                {weekStats.bottles.toFixed(1).replace(/\.0$/, '')}
+              </Text>
+              <Text style={styles.summaryLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>총 병 수</Text>
+            </View>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryItem}>
+              <Text style={[styles.summaryValue, styles.summaryValueCost]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
+                {weekStats.cost.toLocaleString()}
+              </Text>
+              <Text style={styles.summaryLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>총 비용 (원)</Text>
+            </View>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>{weekStats.days}일</Text>
+              <Text style={styles.summaryLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>음주 일수</Text>
             </View>
           </View>
         </View>
@@ -385,7 +381,7 @@ export default function HomeScreen({ navigation }: any) {
                   />
                 </View>
               </View>
-              <Text style={styles.catBannerChevron}>›</Text>
+              <Icon set="fa5" name="caret-right" size={iconSize.sm} color={colors.textTertiary} />
             </TouchableOpacity>
           );
         })()}
@@ -395,7 +391,7 @@ export default function HomeScreen({ navigation }: any) {
           <Text style={styles.sectionTitle}>최근 기록</Text>
           {recentLogs.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>🍶</Text>
+              <Icon set="mci" name="bottle-tonic-outline" size={iconSize.xxl} color={colors.textTertiary} />
               <Text style={styles.emptyText}>아직 기록이 없어요</Text>
               <Text style={styles.emptySubtext}>
                 첫 번째 술을 기록해보세요!
@@ -403,59 +399,69 @@ export default function HomeScreen({ navigation }: any) {
             </View>
           ) : (
             recentLogs.map((log) => (
-              <TouchableOpacity
-                key={log.id}
-                style={styles.logItem}
-                onPress={() =>
-                  navigation
-                    .getParent()
-                    ?.navigate('EditDrink', { logId: log.id })
-                }
-                activeOpacity={0.7}
-              >
-                {log.photo_url ? (
-                  <Image
-                    source={{ uri: log.photo_url }}
-                    style={styles.logThumb}
-                  />
-                ) : null}
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.logName}>
-                    {log.mood ? `${MOOD_ICONS[log.mood]} ` : ''}
-                    {log.weather ? `${WEATHER_ICONS[log.weather as WeatherCode] ?? ''} ` : ''}
-                    {log.drink_catalog?.name ?? '이름 없음'}
-                  </Text>
-                  <Text style={styles.logMeta}>
-                    {log.drink_catalog
-                      ? CATEGORY_LABELS[log.drink_catalog.category]
-                      : ''}
-                    {` · ${log.bottles}병`}
-                    {log.price_paid ? ` · ₩${log.price_paid.toLocaleString()}` : ''}
-                    {log.temperature != null ? ` · ${log.temperature.toFixed(0)}°C` : ''}
-                  </Text>
-                  {(log.location || log.companions) && (
-                    <Text style={styles.logSub} numberOfLines={1}>
-                      {log.location ? `📍 ${log.location}` : ''}
-                      {log.location && log.companions ? '  ' : ''}
-                      {log.companions ? `👥 ${log.companions}` : ''}
+              <View key={log.id} style={styles.logBlock}>
+                {/* 카드 위 날짜·시간 라벨 */}
+                <Text style={styles.logDateAboveCard}>{formatDate(log.logged_at)}</Text>
+                <TouchableOpacity
+                  style={styles.logItem}
+                  onPress={() =>
+                    navigation
+                      .getParent()
+                      ?.navigate('EditDrink', { logId: log.id })
+                  }
+                  activeOpacity={0.7}
+                >
+                  {/* 좌측: 아이콘 컬럼 (세로 중앙 정렬) */}
+                  {log.drink_catalog && (() => {
+                    const ci = getCategoryIcon(log.drink_catalog.category);
+                    return (
+                      <View style={styles.logIconCol}>
+                        <Icon
+                          set={ci.set}
+                          name={ci.name}
+                          size={iconSize.sm}
+                          color={colors.textSecondary}
+                        />
+                      </View>
+                    );
+                  })()}
+
+                  {/* 중앙: 텍스트 컬럼 */}
+                  <View style={styles.logContentCol}>
+                    <Text style={styles.logName} numberOfLines={1}>
+                      {log.drink_catalog?.name ?? '이름 없음'}
                     </Text>
-                  )}
-                </View>
-                <Text style={styles.logDate}>{formatDate(log.logged_at)}</Text>
-              </TouchableOpacity>
+                    <Text style={styles.logMeta}>
+                      {log.drink_catalog
+                        ? CATEGORY_LABELS[log.drink_catalog.category]
+                        : ''}
+                      {` · ${log.bottles}병`}
+                      {log.price_paid ? ` · ₩${log.price_paid.toLocaleString()}` : ''}
+                      {log.temperature != null ? ` · ${log.temperature.toFixed(0)}°C` : ''}
+                    </Text>
+                    {/* 동행자(companions)는 리스트에선 숨기고 상세 화면에서만 노출 */}
+                  </View>
+
+                  {/* 우측: 날씨 + 장소 (날짜는 카드 위로 이동) */}
+                  <View style={styles.logRight}>
+                    {log.weather && (
+                      <Text style={styles.logWeather}>
+                        {WEATHER_ICONS[log.weather as WeatherCode] ?? ''}
+                      </Text>
+                    )}
+                    {log.location && (
+                      <Text style={styles.logLocation} numberOfLines={1}>
+                        📍 {log.location}
+                      </Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              </View>
             ))
           )}
         </View>
       </ScrollView>
 
-      {/* 플로팅 기록 추가 버튼 */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => navigation.getParent()?.navigate('기록추가')}
-        activeOpacity={0.85}
-      >
-        <Text style={styles.fabText}>기록 추가</Text>
-      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -473,8 +479,12 @@ const styles = StyleSheet.create({
   },
   headerRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
+  },
+  profileBtn: {
+    padding: 4,
+    marginBottom: 4,
   },
   appName: {
     fontSize: fontSize.title,
@@ -495,16 +505,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: borderRadius.full,
-    paddingVertical: 5,
-    paddingHorizontal: spacing.md,
-    gap: 5,
+    paddingVertical: 1,
+    paddingHorizontal: 5,
+    gap: 2,
   },
   badgePillEmoji: {
-    fontSize: 16,
+    fontSize: 12,
   },
   badgePillTitle: {
     fontSize: fontSize.xs,
     fontWeight: '700',
+    lineHeight: fontSize.xs + 4,
   },
   badgeTotalMl: {
     fontSize: fontSize.xs,
@@ -517,10 +528,39 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     marginBottom: spacing.lg,
   },
+  summaryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
   summaryTitle: {
     fontSize: fontSize.sm,
     color: colors.textSecondary,
-    marginBottom: spacing.md,
+  },
+  summarySubTitle: {
+    fontSize: fontSize.xs,
+    color: colors.textTertiary,
+    fontWeight: '600',
+    marginBottom: spacing.sm,
+    letterSpacing: 0.3,
+  },
+  streakChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.surfaceLight,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: borderRadius.full,
+  },
+  streakChipFlame: {
+    fontSize: iconSize.xs,
+  },
+  streakChipText: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    fontWeight: '600',
   },
   summaryRow: {
     flexDirection: 'row',
@@ -534,6 +574,9 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xl,
     fontWeight: '700',
     color: colors.textPrimary,
+  },
+  summaryValueCost: {
+    paddingHorizontal: spacing.sm,
   },
   summaryLabel: {
     fontSize: fontSize.xs,
@@ -549,42 +592,6 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: colors.border,
     marginVertical: spacing.md,
-  },
-  streakRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  streakFlame: {
-    fontSize: fontSize.md,
-  },
-  increaseText: {
-    color: '#E53935',
-  },
-  decreaseText: {
-    color: '#43A047',
-  },
-  fab: {
-    position: 'absolute',
-    bottom: spacing.lg,
-    left: spacing.lg,
-    right: spacing.lg,
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.lg,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  fabText: {
-    fontSize: fontSize.lg,
-    fontWeight: '600',
-    color: colors.textInverse,
   },
   recentSection: {
     marginBottom: spacing.lg,
@@ -602,7 +609,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyIcon: {
-    fontSize: 48,
+    fontSize: iconSize.xxl,
     marginBottom: spacing.md,
   },
   emptyText: {
@@ -615,18 +622,51 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.xs,
   },
+  logBlock: {
+    marginBottom: spacing.sm,
+  },
+  logDateAboveCard: {
+    fontSize: fontSize.xs,
+    color: colors.textTertiary,
+    marginBottom: 4,
+    marginLeft: 2,
+  },
   logItem: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
     padding: spacing.md,
     flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  logIconCol: {
+    width: 22,
     alignItems: 'center',
-    marginBottom: spacing.sm,
+    alignSelf: 'stretch',
+    justifyContent: 'center',
+  },
+  logContentCol: {
+    flex: 1,
+    marginLeft: spacing.sm,
   },
   logName: {
     fontSize: fontSize.md,
     fontWeight: '600',
     color: colors.textPrimary,
+    flexShrink: 1,
+  },
+  logRight: {
+    alignItems: 'flex-end',
+    gap: 2,
+    marginLeft: spacing.sm,
+    maxWidth: 120,
+  },
+  logWeather: {
+    fontSize: iconSize.sm,
+  },
+  logLocation: {
+    fontSize: fontSize.xs,
+    color: colors.textTertiary,
+    marginTop: 2,
   },
   logMeta: {
     fontSize: fontSize.sm,
@@ -663,7 +703,7 @@ const styles = StyleSheet.create({
     borderColor: colors.primary + '33',
   },
   catBannerEmoji: {
-    fontSize: 36,
+    fontSize: iconSize.xl,
   },
   catBannerTitle: {
     fontSize: fontSize.md,
@@ -688,7 +728,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   catBannerChevron: {
-    fontSize: 28,
+    fontSize: iconSize.lg,
     color: colors.textTertiary,
   },
 });
