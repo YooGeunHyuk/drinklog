@@ -1197,23 +1197,27 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
+    // 큰 카드 섹션 사이는 lg (1단계 위계)
     marginBottom: spacing.lg,
   },
   milestoneHeader: {
     fontSize: fontSize.md,
     fontWeight: '600',
     color: colors.textPrimary,
-    marginBottom: spacing.md,
+    // 헤더 → 본문 첫 항목 (그룹 시작) = lg
+    marginBottom: spacing.lg,
   },
   badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.xs,
+    // 같은 그룹 내 (배지 → 한 줄 설명) = sm
+    marginBottom: spacing.sm,
   },
   badgeDesc: {
     fontSize: fontSize.xs,
     color: colors.textSecondary,
-    marginBottom: spacing.md,
+    // 그룹 끝 → 다음 그룹 시작 = lg
+    marginBottom: spacing.lg,
     fontStyle: 'italic',
   },
   badgePill: {
@@ -1248,7 +1252,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceLight,
     borderRadius: borderRadius.md,
     padding: spacing.md,
-    marginBottom: spacing.md,
+    // 그룹 끝 → 다음 그룹 = lg
+    marginBottom: spacing.lg,
     gap: spacing.md,
   },
   milestoneEmoji: {
@@ -1263,12 +1268,14 @@ const styles = StyleSheet.create({
   milestoneSubMsg: {
     fontSize: fontSize.xs,
     color: colors.textSecondary,
-    marginTop: 3,
+    marginTop: spacing.xs,
     lineHeight: 16,
   },
   milestoneNextBox: {
-    gap: spacing.xs,
-    marginBottom: spacing.md,
+    // 라벨/% ↔ 진행바 ↔ 부제는 같은 그룹 = sm (이전 xs는 너무 좁음)
+    gap: spacing.sm,
+    // 진행바 그룹끼리 (부피 vs 레벨) 명확히 분리 = lg
+    marginBottom: spacing.lg,
   },
   milestoneProgressRow: {
     flexDirection: 'row',
@@ -1334,8 +1341,9 @@ const styles = StyleSheet.create({
   },
   // 등급 로드맵
   judoScoreLine: {
-    marginTop: spacing.md,
-    paddingTop: spacing.sm,
+    // 마지막 그룹과 분리 — divider + 충분한 호흡
+    marginTop: spacing.lg,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     fontSize: fontSize.sm,
@@ -1355,7 +1363,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   roadmapToggle: {
-    marginTop: spacing.sm,
+    // 위 진행바 그룹과 분리 = lg
+    marginTop: spacing.lg,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
     backgroundColor: colors.surfaceLight,
@@ -1501,7 +1510,8 @@ const styles = StyleSheet.create({
   insightRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.sm,
+    // 각 패턴 행이 호흡 가지도록 = md (sm은 너무 빽빽함)
+    paddingVertical: spacing.md,
     gap: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.border,
@@ -1518,7 +1528,7 @@ const styles = StyleSheet.create({
   insightDetail: {
     fontSize: fontSize.xs,
     color: colors.textSecondary,
-    marginTop: 2,
+    marginTop: spacing.xs,
   },
 
   // ── 업적 ──

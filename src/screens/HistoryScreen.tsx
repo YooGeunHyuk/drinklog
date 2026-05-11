@@ -461,13 +461,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   dateGroup: {
-    marginBottom: spacing.lg,
+    // 날짜 그룹끼리 (다른 날) 명확히 분리 = xl
+    marginBottom: spacing.xl,
   },
   dateHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.sm,
+    // 날짜 헤더 → 그날의 첫 기록 = md
+    marginBottom: spacing.md,
     paddingHorizontal: spacing.xs,
   },
   dateTitle: {
@@ -521,7 +523,7 @@ const styles = StyleSheet.create({
   logTimeAboveCard: {
     fontSize: fontSize.xs,
     color: colors.textTertiary,
-    marginBottom: 4,
+    marginBottom: spacing.xs,
     marginLeft: 2,
   },
   logIconCol: {

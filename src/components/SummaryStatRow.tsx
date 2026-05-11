@@ -54,7 +54,8 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     color: colors.textTertiary,
     fontWeight: '600',
-    marginBottom: spacing.sm,
+    // subTitle ↔ 숫자 행 = md (sm은 너무 좁아 그룹 식별 약함)
+    marginBottom: spacing.md,
     letterSpacing: 0.3,
   },
   row: {

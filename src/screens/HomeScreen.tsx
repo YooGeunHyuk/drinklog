@@ -628,13 +628,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
+    // 카드 섹션 사이 = lg
     marginBottom: spacing.lg,
   },
   summaryHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.md,
+    // 헤더 → 본문 첫 그룹 = lg
+    marginBottom: spacing.lg,
   },
   summaryHeaderRight: {
     flexDirection: 'row',
@@ -668,16 +670,19 @@ const styles = StyleSheet.create({
   summaryHDivider: {
     height: 1,
     backgroundColor: colors.border,
-    marginVertical: spacing.md,
+    // 달/주 두 그룹 사이 — divider 양쪽 lg로 명확히 분리
+    marginVertical: spacing.lg,
   },
   recentSection: {
+    // 큰 섹션 사이 = lg
     marginBottom: spacing.lg,
   },
   sectionTitle: {
     fontSize: fontSize.lg,
     fontWeight: '600',
     color: colors.textPrimary,
-    marginBottom: spacing.md,
+    // 섹션 제목 → 첫 항목 = lg
+    marginBottom: spacing.lg,
   },
   logBlock: {
     marginBottom: spacing.sm,
@@ -685,7 +690,7 @@ const styles = StyleSheet.create({
   logDateAboveCard: {
     fontSize: fontSize.xs,
     color: colors.textTertiary,
-    marginBottom: 4,
+    marginBottom: spacing.xs,
     marginLeft: 2,
   },
   logItem: {
