@@ -90,7 +90,6 @@ export default function EditDrinkScreen({ route, navigation }: Props) {
         listMyFriends(),
         getCompanionsForLog(logId),
       ]);
-      // 친구 관계 accepted만 노출
       setFriends(friendList.filter((f) => f.status === 'accepted'));
       setTaggedFriendIds(new Set(tagged.map((t) => t.user_id)));
     } catch {
