@@ -190,6 +190,18 @@ export default function SettingsScreen({ navigation }: Props) {
             </>
           ) : null}
 
+          {/* 소셜 섹션 */}
+          <Text style={styles.sectionTitle}>소셜</Text>
+          <View style={styles.card}>
+            <TouchableOpacity
+              style={styles.linkRow}
+              onPress={() => navigation.navigate('Friends')}
+            >
+              <Text style={styles.linkText}>친구</Text>
+              <Text style={styles.linkChevron}>›</Text>
+            </TouchableOpacity>
+          </View>
+
           {/* 정보 섹션 */}
           <Text style={styles.sectionTitle}>정보</Text>
           <View style={styles.card}>

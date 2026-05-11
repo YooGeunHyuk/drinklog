@@ -27,6 +27,7 @@ import { uploadDrinkPhoto, uploadDrinkPhotos, deleteDrinkPhoto } from '../lib/st
 import { getDrinkLogPhotos, buildDrinkLogPhotoFields } from '../lib/photos';
 import { WEATHER_ICONS, WEATHER_LABELS, WeatherCode } from '../lib/weather';
 import Icon from '../components/Icon';
+import EmptyState from '../components/EmptyState';
 
 const MOODS: DrinkMood[] = [
   'alone',
@@ -116,20 +117,30 @@ export default function EditDrinkScreen({ route, navigation }: Props) {
   };
 
   const parseLoggedAt = (): string | null => {
-    // YYYY-MM-DD HH:MM → ISO
-    const dateMatch = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-    const timeMatch = timeStr.match(/^(\d{1,2}):(\d{2})$/);
+    // YYYY-MM-DD HH:MM → ISO. 한 자리 월·일·시·분도 허용 (예: 2026-4-5, 9:5).
+    const dateMatch = dateStr.trim().match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    const timeMatch = timeStr.trim().match(/^(\d{1,2}):(\d{1,2})$/);
     if (!dateMatch || !timeMatch) return null;
     const [, y, mo, da] = dateMatch;
     const [, h, mi] = timeMatch;
-    const d = new Date(
-      parseInt(y, 10),
-      parseInt(mo, 10) - 1,
-      parseInt(da, 10),
-      parseInt(h, 10),
-      parseInt(mi, 10),
-    );
+    const month = parseInt(mo, 10);
+    const day = parseInt(da, 10);
+    const hour = parseInt(h, 10);
+    const minute = parseInt(mi, 10);
+    if (month < 1 || month > 12) return null;
+    if (day < 1 || day > 31) return null;
+    if (hour < 0 || hour > 23) return null;
+    if (minute < 0 || minute > 59) return null;
+    const d = new Date(parseInt(y, 10), month - 1, day, hour, minute);
     if (isNaN(d.getTime())) return null;
+    // 윤년 등으로 Date가 자동 wrap한 경우 차단 (예: 2/30 → 3/2)
+    if (
+      d.getFullYear() !== parseInt(y, 10) ||
+      d.getMonth() !== month - 1 ||
+      d.getDate() !== day
+    ) {
+      return null;
+    }
     return d.toISOString();
   };
 
@@ -315,7 +326,18 @@ export default function EditDrinkScreen({ route, navigation }: Props) {
   if (!log) {
     return (
       <SafeAreaView style={[styles.container, styles.centered]}>
-        <Text style={styles.emptyText}>기록을 찾을 수 없어요</Text>
+        <EmptyState
+          title="기록을 찾을 수 없어요"
+          subtitle="이미 삭제됐거나 접근 권한이 없는 기록일 수 있어요."
+          actions={[
+            {
+              label: '뒤로 가기',
+              onPress: () => navigation.goBack(),
+              variant: 'secondary',
+            },
+          ]}
+          variant="plain"
+        />
       </SafeAreaView>
     );
   }
@@ -588,20 +610,22 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: fontSize.sm,
     color: colors.textSecondary,
-    marginBottom: spacing.lg,
+    // 헤더 영역 → 폼 본문 — md
+    marginBottom: spacing.md,
     lineHeight: 20,
   },
   infoCard: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
     padding: spacing.md,
-    marginBottom: spacing.lg,
+    // 정보 카드 → 폼 — md
+    marginBottom: spacing.md,
   },
   infoCategory: {
     fontSize: fontSize.xs,
     color: colors.primary,
     fontWeight: '600',
-    marginBottom: 2,
+    marginBottom: spacing.xs,
   },
   infoName: {
     fontSize: fontSize.lg,
@@ -611,7 +635,7 @@ const styles = StyleSheet.create({
   infoMeta: {
     fontSize: fontSize.sm,
     color: colors.textSecondary,
-    marginTop: 2,
+    marginTop: spacing.xs,
   },
   label: {
     fontSize: fontSize.sm,
@@ -652,7 +676,7 @@ const styles = StyleSheet.create({
   weatherSub: {
     fontSize: fontSize.sm,
     color: colors.textSecondary,
-    marginTop: 2,
+    marginTop: spacing.xs,
   },
   row: {
     flexDirection: 'row',
@@ -666,7 +690,8 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     paddingVertical: spacing.md,
     alignItems: 'center',
-    marginTop: spacing.xl,
+    // 폼 끝 → 저장 버튼 (강조 위해 lg, xl은 과함)
+    marginTop: spacing.lg,
   },
   saveButtonText: {
     fontSize: fontSize.lg,

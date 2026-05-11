@@ -18,6 +18,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { colors, spacing, fontSize, borderRadius, iconSize } from '../constants/theme';
 import { supabase } from '../lib/supabase';
 import { CATEGORY_LABELS, DrinkCategory } from '../types';
+import EmptyState from '../components/EmptyState';
 
 interface DrinkRequest {
   id: string;
@@ -256,16 +257,17 @@ export default function AdminRequestsScreen({ navigation }: any) {
         {loading ? (
           <ActivityIndicator style={{ marginTop: spacing.xxl }} color={colors.primary} />
         ) : requests.length === 0 ? (
-          <View style={styles.empty}>
-            <Text style={styles.emptyIcon}>📭</Text>
-            <Text style={styles.emptyText}>
-              {filter === 'pending'
+          <EmptyState
+            icon={<Text style={{ fontSize: iconSize.xxl }}>📭</Text>}
+            title={
+              filter === 'pending'
                 ? '대기 중인 요청이 없어요'
                 : filter === 'approved'
                   ? '승인한 요청이 없어요'
-                  : '반려한 요청이 없어요'}
-            </Text>
-          </View>
+                  : '반려한 요청이 없어요'
+            }
+            variant="plain"
+          />
         ) : (
           requests.map((req) => (
             <View key={req.id} style={styles.card}>
@@ -383,14 +385,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: spacing.lg,
-  },
-  empty: {
-    alignItems: 'center',
-    paddingVertical: spacing.xxl,
-  },
-  emptyIcon: {
-    fontSize: iconSize.xxl,
-    marginBottom: spacing.md,
   },
   emptyText: {
     fontSize: fontSize.md,

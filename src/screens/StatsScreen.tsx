@@ -35,6 +35,7 @@ import { buildCollection, collectionStats } from '../lib/collection';
 import InfoBubble, { BubbleData } from '../components/InfoBubble';
 import Icon from '../components/Icon';
 import { ErrorBanner } from '../components/ErrorBanner';
+import { buildPeriodBrag, shareBrag } from '../lib/share';
 
 type Period = 'week' | 'month' | 'year' | 'all';
 
@@ -84,6 +85,7 @@ const CATEGORY_COLORS: Record<DrinkCategory, string> = {
 export default function StatsScreen() {
   const [period, setPeriod] = useState<Period>('week');
   const [logs, setLogs] = useState<DrinkLog[]>([]);
+  const [nickname, setNickname] = useState<string>('');
   const [levelRoadmapOpen, setLevelRoadmapOpen] = useState(false);
   const [achievementsOpen, setAchievementsOpen] = useState(false);
   // 뱃지/훈장/업적 탭 시 뜨는 말풍선
@@ -125,6 +127,14 @@ export default function StatsScreen() {
 
       if (error) throw error;
       setLogs((data as DrinkLog[]) ?? []);
+
+      // 닉네임 — 공유 텍스트에 사용
+      const { data: profile } = await supabase
+        .from('users')
+        .select('nickname')
+        .eq('id', user.id)
+        .single();
+      if (profile?.nickname) setNickname(profile.nickname);
     } catch (err: any) {
       console.error('통계 로드 실패:', err.message);
       setLoadError(err?.message ?? '알 수 없는 오류가 발생했어요.');
@@ -360,7 +370,31 @@ export default function StatsScreen() {
           onRetry={loadLogs}
           onDismiss={() => setLoadError(null)}
         />
-        <Text style={styles.title}>통계</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>통계</Text>
+          <TouchableOpacity
+            onPress={() =>
+              shareBrag(
+                buildPeriodBrag(PERIOD_LABELS[period], {
+                  bottles: stats.bottles,
+                  cost: stats.cost,
+                  days: stats.days,
+                  nickname: nickname || undefined,
+                }),
+                `${PERIOD_LABELS[period]} 음주 기록`,
+              )
+            }
+            style={styles.titleShareBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Icon
+              set="lucide"
+              name="Share2"
+              size={iconSize.sm}
+              color={colors.textSecondary}
+            />
+          </TouchableOpacity>
+        </View>
 
         {/* 기간 토글 */}
         <View style={styles.periodToggle}>
@@ -391,17 +425,17 @@ export default function StatsScreen() {
             <Text style={styles.statValue}>
               {stats.bottles.toFixed(1).replace(/\.0$/, '')}
             </Text>
-            <Text style={styles.statLabel}>총 병 수</Text>
+            <Text style={styles.statLabel}>비운 병 수</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>
               ₩{stats.cost.toLocaleString()}
             </Text>
-            <Text style={styles.statLabel}>총 비용</Text>
+            <Text style={styles.statLabel}>쓴 금액</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>{stats.days}일</Text>
-            <Text style={styles.statLabel}>음주 일수</Text>
+            <Text style={styles.statLabel}>마신 일수</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>
@@ -635,11 +669,18 @@ export default function StatsScreen() {
             </View>
           )}
 
-          {/* 주도 점수 한 줄 */}
-          <Text style={styles.judoScoreLine}>
-            주도 점수 <Text style={styles.judoScoreValue}>{judoScore.toLocaleString()}</Text>
-            <Text style={styles.judoScoreHint}>  ·  ml÷100 + 술자리×100 + 연속 + 다양성×50</Text>
-          </Text>
+          {/* 주도 점수 — 메인 라인 + 공식 hint 두 줄 (같은 그룹이라 xs로 가까이) */}
+          <View style={styles.judoScoreBlock}>
+            <Text style={styles.judoScoreLine}>
+              주도 점수{' '}
+              <Text style={styles.judoScoreValue}>
+                {judoScore.toLocaleString()}
+              </Text>
+            </Text>
+            <Text style={styles.judoScoreHint}>
+              ml÷100 + 술자리×100 + 연속 + 다양성×50
+            </Text>
+          </View>
         </View>
 
         {/* 🎯 주종별 여정 */}
@@ -758,7 +799,15 @@ export default function StatsScreen() {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            style={{ marginTop: spacing.md, marginBottom: spacing.sm }}
+            style={{
+              marginTop: spacing.md,
+              marginBottom: spacing.sm,
+              marginHorizontal: -spacing.lg,
+            }}
+            contentContainerStyle={{
+              paddingHorizontal: spacing.lg,
+              gap: spacing.xs,
+            }}
           >
             <TouchableOpacity
               onPress={() => setAchievementFilter('all')}
@@ -1007,18 +1056,28 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: spacing.lg,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    // 제목 → 기간 토글 (같은 헤더 영역) — md
+    marginBottom: spacing.md,
+  },
   title: {
     fontSize: fontSize.xxl,
     fontWeight: '700',
     color: colors.textPrimary,
-    marginBottom: spacing.lg,
+  },
+  titleShareBtn: {
+    padding: spacing.xs,
   },
   periodToggle: {
     flexDirection: 'row',
     backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
     padding: spacing.xs,
-    marginBottom: spacing.lg,
+    // 토글 → 통계 그리드 (카드 영역으로) — lg는 과함, md 적절
+    marginBottom: spacing.md,
   },
   periodButton: {
     flex: 1,
@@ -1147,22 +1206,26 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
+    // 큰 카드 섹션 사이는 lg (1단계 위계)
     marginBottom: spacing.lg,
   },
   milestoneHeader: {
     fontSize: fontSize.md,
     fontWeight: '600',
     color: colors.textPrimary,
+    // 카드 헤더 → 본문 — md로 충분 (lg는 빈 공간 과함)
     marginBottom: spacing.md,
   },
   badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    // 같은 그룹 (배지 + 단계 설명) — 더 묶이도록 xs
     marginBottom: spacing.xs,
   },
   badgeDesc: {
     fontSize: fontSize.xs,
     color: colors.textSecondary,
+    // 그룹 끝 → 다음 그룹 — 카드 안에서는 md로 충분
     marginBottom: spacing.md,
     fontStyle: 'italic',
   },
@@ -1198,6 +1261,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceLight,
     borderRadius: borderRadius.md,
     padding: spacing.md,
+    // 카드 안 그룹 사이 — md
     marginBottom: spacing.md,
     gap: spacing.md,
   },
@@ -1213,11 +1277,13 @@ const styles = StyleSheet.create({
   milestoneSubMsg: {
     fontSize: fontSize.xs,
     color: colors.textSecondary,
-    marginTop: 3,
+    marginTop: spacing.xs,
     lineHeight: 16,
   },
   milestoneNextBox: {
-    gap: spacing.xs,
+    // 라벨/% ↔ 진행바 ↔ 부제는 같은 그룹 = sm
+    gap: spacing.sm,
+    // 진행바 그룹끼리 — md로 분리 (lg는 카드 안에서 과함)
     marginBottom: spacing.md,
   },
   milestoneProgressRow: {
@@ -1283,11 +1349,14 @@ const styles = StyleSheet.create({
     color: colors.textTertiary,
   },
   // 등급 로드맵
-  judoScoreLine: {
-    marginTop: spacing.md,
-    paddingTop: spacing.sm,
+  judoScoreBlock: {
+    // 위 그룹(로드맵 토글)과 분리 — divider + lg
+    marginTop: spacing.lg,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.border,
+  },
+  judoScoreLine: {
     fontSize: fontSize.sm,
     color: colors.textSecondary,
   },
@@ -1298,6 +1367,8 @@ const styles = StyleSheet.create({
   judoScoreHint: {
     fontSize: fontSize.xs,
     color: colors.textTertiary ?? colors.textSecondary,
+    // 같은 그룹(점수 + 공식) — 가까이 xs
+    marginTop: spacing.xs,
   },
   medalIntro: {
     fontSize: fontSize.sm,
@@ -1305,7 +1376,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   roadmapToggle: {
-    marginTop: spacing.sm,
+    // 위 진행바 그룹과 분리 — md
+    marginTop: spacing.md,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
     backgroundColor: colors.surfaceLight,
@@ -1320,26 +1392,29 @@ const styles = StyleSheet.create({
   badgeRoadmap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    columnGap: spacing.sm,
-    rowGap: spacing.lg,
+    columnGap: spacing.xs,
+    // 행 간 간격 — 4열로 빽빽해지므로 md 정도가 적절 (이전 lg는 과함)
+    rowGap: spacing.md,
     paddingTop: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
   roadmapItem: {
     alignItems: 'center',
-    width: '31%', // 3칸 × 31% + gap 8×2 ≈ 100%
-    gap: 4,
+    // 4칸 × 23% + gap 4×3 ≈ 100% — 한 줄에 4개로 변경
+    width: '23%',
+    gap: spacing.xs,
   },
   roadmapDot: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    // 4열로 좁아지므로 dot도 살짝 작게 (48 → 40)
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
   roadmapEmoji: {
-    fontSize: iconSize.md,
+    fontSize: iconSize.sm,
   },
   roadmapLabel: {
     fontSize: fontSize.xs,
@@ -1350,7 +1425,7 @@ const styles = StyleSheet.create({
   },
   roadmapTitle: {
     fontSize: fontSize.xs,
-    lineHeight: 15,
+    lineHeight: 14,
     color: colors.textTertiary,
     textAlign: 'center',
     width: '100%',
@@ -1451,7 +1526,8 @@ const styles = StyleSheet.create({
   insightRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.sm,
+    // 각 패턴 행이 호흡 가지도록 = md (sm은 너무 빽빽함)
+    paddingVertical: spacing.md,
     gap: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.border,
@@ -1468,7 +1544,7 @@ const styles = StyleSheet.create({
   insightDetail: {
     fontSize: fontSize.xs,
     color: colors.textSecondary,
-    marginTop: 2,
+    marginTop: spacing.xs,
   },
 
   // ── 업적 ──
@@ -1505,7 +1581,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
     borderRadius: borderRadius.full,
-    marginRight: spacing.xs,
   },
   achFilterChipActive: {
     backgroundColor: colors.primary,

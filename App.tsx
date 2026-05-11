@@ -53,20 +53,28 @@ export default function App() {
     // 진입 게이트:
     //   1. 약관 동의 (terms_agreed_at + privacy_agreed_at) — 법적 필수
     //   2. 프로필 완성 (nickname + birth_year) — 만 19세 검증 위해
-    const { data } = await supabase
-      .from('users')
-      .select('nickname, birth_year, terms_agreed_at, privacy_agreed_at')
-      .eq('id', userId)
-      .single();
-    if (!data?.terms_agreed_at || !data?.privacy_agreed_at) {
+    // .maybeSingle() — public.users에 row가 아직 없어도 에러 던지지 않음
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('nickname, birth_year, terms_agreed_at, privacy_agreed_at')
+        .eq('id', userId)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data?.terms_agreed_at || !data?.privacy_agreed_at) {
+        setAppState('terms_agreement');
+        return;
+      }
+      if (!data?.nickname || !data?.birth_year) {
+        setAppState('profile_setup');
+        return;
+      }
+      setAppState('main');
+    } catch (err) {
+      // 조회 실패해도 로딩에 갇히지 않도록 약관 단계로 폴백
+      console.error('checkProfile error:', err);
       setAppState('terms_agreement');
-      return;
     }
-    if (!data?.nickname || !data?.birth_year) {
-      setAppState('profile_setup');
-      return;
-    }
-    setAppState('main');
   };
 
   if (appState === 'loading' || !fontsLoaded) {
