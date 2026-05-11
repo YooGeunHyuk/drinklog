@@ -1211,8 +1211,8 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     fontWeight: '600',
     color: colors.textPrimary,
-    // 헤더 → 본문 첫 항목 (그룹 시작) = lg
-    marginBottom: spacing.lg,
+    // 카드 헤더 → 본문 — md로 충분 (lg는 빈 공간 과함)
+    marginBottom: spacing.md,
   },
   badgeRow: {
     flexDirection: 'row',
@@ -1223,8 +1223,8 @@ const styles = StyleSheet.create({
   badgeDesc: {
     fontSize: fontSize.xs,
     color: colors.textSecondary,
-    // 그룹 끝 → 다음 그룹 시작 = lg
-    marginBottom: spacing.lg,
+    // 그룹 끝 → 다음 그룹 — 카드 안에서는 md로 충분
+    marginBottom: spacing.md,
     fontStyle: 'italic',
   },
   badgePill: {
@@ -1259,8 +1259,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceLight,
     borderRadius: borderRadius.md,
     padding: spacing.md,
-    // 그룹 끝 → 다음 그룹 = lg
-    marginBottom: spacing.lg,
+    // 카드 안 그룹 사이 — md
+    marginBottom: spacing.md,
     gap: spacing.md,
   },
   milestoneEmoji: {
@@ -1279,10 +1279,10 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   milestoneNextBox: {
-    // 라벨/% ↔ 진행바 ↔ 부제는 같은 그룹 = sm (이전 xs는 너무 좁음)
+    // 라벨/% ↔ 진행바 ↔ 부제는 같은 그룹 = sm
     gap: spacing.sm,
-    // 진행바 그룹끼리 (부피 vs 레벨) 명확히 분리 = lg
-    marginBottom: spacing.lg,
+    // 진행바 그룹끼리 — md로 분리 (lg는 카드 안에서 과함)
+    marginBottom: spacing.md,
   },
   milestoneProgressRow: {
     flexDirection: 'row',
@@ -1374,8 +1374,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   roadmapToggle: {
-    // 위 진행바 그룹과 분리 = lg
-    marginTop: spacing.lg,
+    // 위 진행바 그룹과 분리 — md
+    marginTop: spacing.md,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
     backgroundColor: colors.surfaceLight,
@@ -1390,26 +1390,29 @@ const styles = StyleSheet.create({
   badgeRoadmap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    columnGap: spacing.sm,
-    rowGap: spacing.lg,
+    columnGap: spacing.xs,
+    // 행 간 간격 — 4열로 빽빽해지므로 md 정도가 적절 (이전 lg는 과함)
+    rowGap: spacing.md,
     paddingTop: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
   roadmapItem: {
     alignItems: 'center',
-    width: '31%', // 3칸 × 31% + gap 8×2 ≈ 100%
-    gap: 4,
+    // 4칸 × 23% + gap 4×3 ≈ 100% — 한 줄에 4개로 변경
+    width: '23%',
+    gap: spacing.xs,
   },
   roadmapDot: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    // 4열로 좁아지므로 dot도 살짝 작게 (48 → 40)
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
   roadmapEmoji: {
-    fontSize: iconSize.md,
+    fontSize: iconSize.sm,
   },
   roadmapLabel: {
     fontSize: fontSize.xs,
@@ -1420,7 +1423,7 @@ const styles = StyleSheet.create({
   },
   roadmapTitle: {
     fontSize: fontSize.xs,
-    lineHeight: 15,
+    lineHeight: 14,
     color: colors.textTertiary,
     textAlign: 'center',
     width: '100%',

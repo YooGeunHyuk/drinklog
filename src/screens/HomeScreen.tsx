@@ -635,8 +635,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    // 헤더 → 본문 첫 그룹 = lg
-    marginBottom: spacing.lg,
+    // 카드 헤더 → 본문 — md로 충분
+    marginBottom: spacing.md,
   },
   summaryHeaderRight: {
     flexDirection: 'row',
@@ -670,19 +670,18 @@ const styles = StyleSheet.create({
   summaryHDivider: {
     height: 1,
     backgroundColor: colors.border,
-    // 달/주 두 그룹 사이 — divider 양쪽 lg로 명확히 분리
-    marginVertical: spacing.lg,
+    // 같은 카드 안 그룹 사이 — md로 충분 (lg는 과함, 카드가 너무 길어짐)
+    marginVertical: spacing.md,
   },
   recentSection: {
-    // 큰 섹션 사이 = lg
     marginBottom: spacing.lg,
   },
   sectionTitle: {
     fontSize: fontSize.lg,
     fontWeight: '600',
     color: colors.textPrimary,
-    // 섹션 제목 → 첫 항목 = lg
-    marginBottom: spacing.lg,
+    // 제목 → 첫 카드 — md로 가까이 (lg는 빈 공간 과함)
+    marginBottom: spacing.md,
   },
   logBlock: {
     marginBottom: spacing.sm,
